@@ -4,7 +4,7 @@
 
 #include "file_writer.h"
 
-ColumnarWriter::ColumnarWriter(const std::string& filename, const Schema& schema) : output_(filename + ".mydb"), metadata_(schema) {
+ColumnarWriter::ColumnarWriter(const std::string& filename, const Schema& schema) : output_(filename), metadata_(schema) {
 }
 
 void ColumnarWriter::AddRowGroup(const std::vector<std::unique_ptr<Column>>& columns) {

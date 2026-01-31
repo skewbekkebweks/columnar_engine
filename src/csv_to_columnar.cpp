@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
     Schema schema = Schema::FromCsv(schema_file);
 
     CsvReader input_reader{input_file};
-    ColumnarWriter output_writer{output_file, schema};
+    ColumnarWriter output_writer{output_file + ".skewdb", schema};
 
     while (true) {
         std::vector<std::unique_ptr<Column>> cur_row_group;
