@@ -7,5 +7,5 @@ enum class Type {
     String,
 };
 
-Type StringToType(std::string);
+Type StringToType(const std::string&);
 std::string TypeToString(Type);

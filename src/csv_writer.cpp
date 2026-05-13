@@ -1,6 +1,8 @@
 #include "csv_writer.h"
 
-CsvWriter::CsvWriter(const std::string& filename, CsvConfig config) : output_(filename), config_(config) {}
+CsvWriter::CsvWriter(const std::string& filename, CsvConfig config)
+    : output_(filename), config_(config) {
+}
 
 void CsvWriter::WriteRow(const std::vector<std::string>& row) {
     size_t n = row.size();

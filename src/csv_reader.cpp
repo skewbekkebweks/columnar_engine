@@ -1,6 +1,8 @@
 #include "csv_reader.h"
 
-CsvReader::CsvReader(const std::string& filename, CsvConfig config) : input_(filename), config_(config) {}
+CsvReader::CsvReader(const std::string& filename, CsvConfig config)
+    : input_(filename), config_(config) {
+}
 
 struct CsvReader::CsvRowState {
     std::vector<std::string> row = {""};

@@ -1,8 +1,10 @@
 #include "metadata.h"
 
-Metadata::Metadata() : schema_() {}
+Metadata::Metadata() : schema_() {
+}
 
-Metadata::Metadata(const Schema& schema) : schema_(schema) {}
+Metadata::Metadata(const Schema& schema) : schema_(schema) {
+}
 
 void Metadata::SetSchema(const Schema& schema) {
     schema_ = schema;
@@ -22,9 +24,9 @@ size_t Metadata::GetRowGroupsCount() const {
 Schema Metadata::GetSchema() const {
     return schema_;
 }
-std::vector<size_t> Metadata::GetOffsets() const {
+const std::vector<size_t>& Metadata::GetOffsets() const {
     return offsets_;
 }
-std::vector<size_t> Metadata::GetRowCounts() const {
+const std::vector<size_t>& Metadata::GetRowCounts() const {
     return row_counts_;
 }

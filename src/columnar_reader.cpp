@@ -26,27 +26,28 @@ std::optional<std::vector<std::unique_ptr<Column>>> ColumnarReader::ReadRowGroup
 
     for (auto column : columns) {
         switch (column.type) {
-        case Type::Int64: {
-            cur_row_group.push_back(std::make_unique<ColumnInt64>());
-            for (size_t i = 0; i < row_count; ++i) {
-                int64_t value = Read<int64_t>(input_);
-                spdlog::debug("Read " + std::to_string(value));
-                cur_row_group.back()->PushBack(std::to_string(value));
+            case Type::Int64: {
+                cur_row_group.push_back(std::make_unique<ColumnInt64>());
+                for (size_t i = 0; i < row_count; ++i) {
+                    int64_t value = Read<int64_t>(input_);
+                    spdlog::debug("Read " + std::to_string(value));
+                    cur_row_group.back()->PushBack(std::to_string(value));
+                }
+                break;
             }
-            break;
-        }
-        case Type::String: {
-            cur_row_group.push_back(std::make_unique<ColumnString>());
-            for (size_t i = 0; i < row_count; ++i) {
-                std::string value = Read<std::string>(input_);
-                spdlog::debug("Read " + value);
-                cur_row_group.back()->PushBack(value);
+            case Type::String: {
+                cur_row_group.push_back(std::make_unique<ColumnString>());
+                for (size_t i = 0; i < row_count; ++i) {
+                    std::string value = Read<std::string>(input_);
+                    spdlog::debug("Read " + value);
+                    cur_row_group.back()->PushBack(value);
+                }
+                break;
             }
-            break;
-        }
-        default:
-            spdlog::error("Unreachable code reached in CsvToColumnar");
-            throw std::runtime_error{"Unreachable code reached in CsvToColumnar"};
+            default: {
+                spdlog::error("Unreachable code reached in CsvToColumnar");
+                throw std::runtime_error{"Unreachable code reached in CsvToColumnar"};
+            }
         }
     }
 
@@ -93,7 +94,8 @@ Schema ColumnarReader::ReadSchema(size_t columns_count) {
         std::string name = Read<std::string>(input_);
         Type type = static_cast<Type>(Read<size_t>(input_));
 
-        spdlog::debug("ReadSchema: column " + name + " " + std::to_string(static_cast<size_t>(type)));
+        spdlog::debug("ReadSchema: column " + name + " " +
+                      std::to_string(static_cast<size_t>(type)));
 
         schema.AddColumn(Schema::ColumnInfo{name, type});
     }

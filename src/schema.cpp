@@ -28,8 +28,10 @@ const std::vector<Schema::ColumnInfo>& Schema::GetColumns() const {
     return columns_;
 }
 
-Schema::Schema() : columns_() {}
-Schema::Schema(std::vector<Schema::ColumnInfo> columns) : columns_(std::move(columns)) {}
+Schema::Schema() : columns_() {
+}
+Schema::Schema(std::vector<Schema::ColumnInfo> columns) : columns_(std::move(columns)) {
+}
 
 void Schema::AddColumn(Schema::ColumnInfo column) {
     if (column_names_.count(column.name)) {

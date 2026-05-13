@@ -8,7 +8,7 @@
 class CsvReader {
 public:
     CsvReader(const std::string& filename, CsvConfig config = {});
-    
+
     std::optional<std::vector<std::string>> ReadRow();
 
 private:

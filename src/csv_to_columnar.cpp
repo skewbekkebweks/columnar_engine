@@ -49,17 +49,18 @@ int main(int argc, char** argv) {
 
         for (auto column : schema.GetColumns()) {
             switch (column.type) {
-            case Type::Int64: {
-                cur_row_group.push_back(std::make_unique<ColumnInt64>());
-                break;
-            }
-            case Type::String: {
-                cur_row_group.push_back(std::make_unique<ColumnString>());
-                break;
-            }
-            default:
-                spdlog::error("Unreachable code reached in CsvToColumnar");
-                throw std::runtime_error{"Unreachable code reached in CsvToColumnar"};
+                case Type::Int64: {
+                    cur_row_group.push_back(std::make_unique<ColumnInt64>());
+                    break;
+                }
+                case Type::String: {
+                    cur_row_group.push_back(std::make_unique<ColumnString>());
+                    break;
+                }
+                default: {
+                    spdlog::error("Unreachable code reached in CsvToColumnar");
+                    throw std::runtime_error{"Unreachable code reached in CsvToColumnar"};
+                }
             }
         }
 
@@ -68,7 +69,9 @@ int main(int argc, char** argv) {
         while (auto row_opt = input_reader.ReadRow()) {
             std::vector<std::string> row = std::move(row_opt.value());
             if (row.size() != schema.Size()) {
-                throw std::runtime_error{"Csv file has " + std::to_string(row.size()) + " columns, but schema has " + std::to_string(schema.Size())};
+                throw std::runtime_error{"Csv file has " + std::to_string(row.size()) +
+                                         " columns, but schema has " +
+                                         std::to_string(schema.Size())};
             }
 
             for (size_t i = 0; i < row.size(); ++i) {
@@ -91,7 +94,8 @@ int main(int argc, char** argv) {
     output_writer.Finalize();
 
     auto end_time = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+    auto duration =
+        std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
 
     std::cout << "Processing time: " << static_cast<double>(duration) / 1000 << "s" << '\n';
-}   
+}

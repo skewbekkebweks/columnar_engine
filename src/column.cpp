@@ -9,7 +9,11 @@ Type ColumnInt64::GetType() const {
 }
 
 void ColumnInt64::PushBack(const std::string& value) {
-    data_.push_back(std::stoll(value));
+    try {
+        data_.push_back(std::stoll(value));
+    } catch (...) {
+        throw std::runtime_error("invalid int64");
+    }
 }
 
 size_t ColumnInt64::Size() const {

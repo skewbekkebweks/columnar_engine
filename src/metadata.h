@@ -14,8 +14,9 @@ public:
     size_t GetColumnsCount() const;
     size_t GetRowGroupsCount() const;
     Schema GetSchema() const;
-    std::vector<size_t> GetOffsets() const;
-    std::vector<size_t> GetRowCounts() const;
+    const std::vector<size_t>& GetOffsets() const;
+    const std::vector<size_t>& GetRowCounts() const;
+
 private:
     Schema schema_;
     std::vector<size_t> offsets_;

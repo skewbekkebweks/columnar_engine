@@ -48,7 +48,8 @@ int main(int argc, char** argv) {
     }
 
     auto end_time = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+    auto duration =
+        std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
 
     std::cout << "Processing time: " << static_cast<double>(duration) / 1000 << "s" << '\n';
 }

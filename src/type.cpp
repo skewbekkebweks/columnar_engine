@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include <spdlog/spdlog.h>
 
-Type StringToType(std::string str) {
+Type StringToType(const std::string& str) {
     if (str == "int64") {
         return Type::Int64;
     } else if (str == "string") {
