@@ -1,6 +1,7 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include <spdlog/spdlog.h>
+#include <chrono>
 
 #include "schema.h"
 #include "column.h"
@@ -34,6 +35,8 @@ int main(int argc, char** argv) {
         std::cerr << "--schema <schema-csv-file> is required" << std::endl;
         return 1;
     }
+
+    auto start_time = std::chrono::steady_clock::now();
 
     Schema schema = Schema::FromCsv(schema_file);
 
@@ -86,4 +89,9 @@ int main(int argc, char** argv) {
     }
 
     output_writer.Finalize();
+
+    auto end_time = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+
+    std::cout << "Processing time: " << static_cast<double>(duration) / 1000 << "s" << '\n';
 }   
