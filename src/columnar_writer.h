@@ -11,7 +11,7 @@ public:
 
     void AddRowGroup(const std::vector<std::unique_ptr<Column>>& columns);
 
-    void Finalize();
+    void Finalize() &&;
 
 private:
     std::ofstream output_;

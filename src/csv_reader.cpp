@@ -9,7 +9,7 @@ struct CsvReader::CsvRowState {
     bool in_quotes = false;
 };
 
-bool CsvReader::UpdateState(CsvRowState& state, char c) {
+bool CsvReader::UpdateState(CsvRowState& state, int c) {
     if (c == EOF) {
         return false;
     }
@@ -17,6 +17,7 @@ bool CsvReader::UpdateState(CsvRowState& state, char c) {
         if (state.in_quotes) {
             if (input_.peek() == config_.quote) {
                 state.row.back() += config_.quote;
+                input_.get();
             } else {
                 state.in_quotes = false;
             }
@@ -24,13 +25,13 @@ bool CsvReader::UpdateState(CsvRowState& state, char c) {
             state.in_quotes = true;
         }
     } else if (state.in_quotes) {
-        state.row.back() += c;
+        state.row.back() += static_cast<char>(c);
     } else if (c == config_.delimiter) {
         state.row.push_back("");
     } else if (c == '\n') {
         return false;
     } else {
-        state.row.back() += c;
+        state.row.back() += static_cast<char>(c);
     }
     return true;
 }
@@ -42,7 +43,7 @@ std::optional<std::vector<std::string>> CsvReader::ReadRow() {
     CsvRowState state;
 
     while (true) {
-        char c = input_.get();
+        int c = input_.get();
         bool read_next = UpdateState(state, c);
         if (!read_next) {
             break;

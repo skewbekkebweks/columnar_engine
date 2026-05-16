@@ -1,5 +1,7 @@
 #include "columnar_reader.h"
 
+#include <numeric>
+#include "error.h"
 #include "file_reader.h"
 #include <spdlog/spdlog.h>
 
@@ -7,52 +9,94 @@ ColumnarReader::ColumnarReader(const std::string& filename) : input_(filename) {
     ScanMetadata();
 }
 
-bool ColumnarReader::HasRowGroup() {
+bool ColumnarReader::HasRowGroup() const {
     return cur_row_group_idx < metadata_.GetRowGroupsCount();
 }
 
-std::optional<std::vector<std::unique_ptr<Column>>> ColumnarReader::ReadRowGroup() {
+size_t ColumnarReader::SkipRowGroup() {
+    if (!HasRowGroup()) {
+        THROW_RUNTIME_ERROR("SkipRowGroup: no row groups remaining");
+    }
+    size_t row_count = metadata_.GetRowCounts()[cur_row_group_idx];
+    cur_row_group_idx++;
+    if (HasRowGroup()) {
+        input_.seekg(static_cast<std::streamoff>(metadata_.GetOffsets()[cur_row_group_idx]),
+                     std::ios::beg);
+    }
+    return row_count;
+}
+
+std::optional<std::vector<std::unique_ptr<Column>>> ColumnarReader::ReadRowGroup(
+    const std::vector<size_t>* col_indices) {
     if (!HasRowGroup()) {
         return std::nullopt;
     }
 
-    Schema schema = metadata_.GetSchema();
-    std::vector<Schema::ColumnInfo> columns = schema.GetColumns();
-
+    const auto& columns = metadata_.GetSchema().GetColumns();
     size_t row_count = metadata_.GetRowCounts()[cur_row_group_idx];
 
-    std::vector<std::unique_ptr<Column>> cur_row_group;
-    cur_row_group.reserve(schema.Size());
+    std::vector<size_t> all_indices;
+    if (col_indices == nullptr) {
+        all_indices.resize(columns.size());
+        std::iota(all_indices.begin(), all_indices.end(), 0);
+        col_indices = &all_indices;
+    }
 
-    for (auto column : columns) {
-        switch (column.type) {
-            case Type::Int64: {
-                cur_row_group.push_back(std::make_unique<ColumnInt64>());
-                for (size_t i = 0; i < row_count; ++i) {
-                    int64_t value = Read<int64_t>(input_);
-                    spdlog::debug("Read " + std::to_string(value));
-                    cur_row_group.back()->PushBack(std::to_string(value));
+    std::vector<std::unique_ptr<Column>> result;
+    result.reserve(col_indices->size());
+
+    size_t want = 0;
+    for (size_t col_pos = 0; col_pos < columns.size(); ++col_pos) {
+        bool read_this = want < col_indices->size() && (*col_indices)[want] == col_pos;
+
+        switch (columns[col_pos].type) {
+            case Type::Int64:
+                if (read_this) {
+                    auto col = std::make_unique<ColumnInt64>();
+                    for (size_t i = 0; i < row_count; ++i) {
+                        col->PushBack(Value{Read<int64_t>(input_)});
+                    }
+                    result.push_back(std::move(col));
+                    ++want;
+                } else {
+                    input_.seekg(static_cast<std::streamoff>(row_count * sizeof(int64_t)),
+                                 std::ios::cur);
                 }
                 break;
-            }
-            case Type::String: {
-                cur_row_group.push_back(std::make_unique<ColumnString>());
-                for (size_t i = 0; i < row_count; ++i) {
-                    std::string value = Read<std::string>(input_);
-                    spdlog::debug("Read " + value);
-                    cur_row_group.back()->PushBack(value);
+            case Type::String:
+                if (read_this) {
+                    auto col = std::make_unique<ColumnString>();
+                    for (size_t i = 0; i < row_count; ++i) {
+                        col->PushBack(Value{Read<std::string>(input_)});
+                    }
+                    result.push_back(std::move(col));
+                    ++want;
+                } else {
+                    std::string discard;
+                    for (size_t i = 0; i < row_count; ++i) {
+                        std::getline(input_, discard, '\0');
+                    }
                 }
                 break;
-            }
-            default: {
-                spdlog::error("Unreachable code reached in CsvToColumnar");
-                throw std::runtime_error{"Unreachable code reached in CsvToColumnar"};
-            }
+            default:
+                THROW_NOT_IMPLEMENTED;
         }
     }
 
     cur_row_group_idx++;
-    return cur_row_group;
+    return result;
+}
+
+const Schema& ColumnarReader::GetSchema() const {
+    return metadata_.GetSchema();
+}
+
+size_t ColumnarReader::GetTotalRowCount() const {
+    size_t total = 0;
+    for (size_t count : metadata_.GetRowCounts()) {
+        total += count;
+    }
+    return total;
 }
 
 void ColumnarReader::ScanMetadata() {
@@ -80,7 +124,7 @@ void ColumnarReader::ScanMetadata() {
     for (size_t i = 0; i < row_groups_count; ++i) {
         size_t offset = Read<size_t>(input_);
         size_t row_count = Read<size_t>(input_);
-        spdlog::debug("Rows count is " + std::to_string(row_count));
+        spdlog::debug("Rows count is {}", row_count);
         metadata_.AddRowGroup(offset, row_count);
     }
 

@@ -33,13 +33,14 @@ int main(int argc, char** argv) {
 
     while (auto row_group_opt = input_reader.ReadRowGroup()) {
         auto row_group = std::move(row_group_opt.value());
-        size_t coulumns_count = row_group.size();
-        for (size_t i = 0; i < row_group[0]->Size(); ++i) {
-            spdlog::debug("row number " + std::to_string(i));
+        size_t columns_count = row_group.size();
+        size_t row_count = row_group[0]->Size();
+        for (size_t i = 0; i < row_count; ++i) {
+            spdlog::debug("row number {}", i);
             std::vector<std::string> row;
-            row.reserve(coulumns_count);
+            row.reserve(columns_count);
 
-            for (size_t j = 0; j < coulumns_count; ++j) {
+            for (size_t j = 0; j < columns_count; ++j) {
                 row.push_back(row_group[j]->operator[](i));
             }
 

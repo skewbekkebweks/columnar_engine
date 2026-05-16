@@ -11,9 +11,14 @@ class ColumnarReader {
 public:
     ColumnarReader(const std::string& filename);
 
-    bool HasRowGroup();
+    bool HasRowGroup() const;
 
-    std::optional<std::vector<std::unique_ptr<Column>>> ReadRowGroup();
+    size_t SkipRowGroup();
+    std::optional<std::vector<std::unique_ptr<Column>>> ReadRowGroup(
+        const std::vector<size_t>* col_indices = nullptr);
+
+    const Schema& GetSchema() const;
+    size_t GetTotalRowCount() const;
 
 private:
     void ScanMetadata();

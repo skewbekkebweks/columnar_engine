@@ -1,6 +1,6 @@
 #include "type.h"
+#include "error.h"
 
-#include <stdexcept>
 #include <spdlog/spdlog.h>
 
 Type StringToType(const std::string& str) {
@@ -9,7 +9,7 @@ Type StringToType(const std::string& str) {
     } else if (str == "string") {
         return Type::String;
     }
-    throw std::runtime_error{"unknown type: " + str};
+    THROW_RUNTIME_ERROR("unknown type: " + str);
 }
 
 std::string TypeToString(Type type) {
@@ -20,9 +20,7 @@ std::string TypeToString(Type type) {
         case Type::String: {
             return "string";
         }
-        default: {
-            spdlog::error("Unreachable code reached in TypeToString");
-            throw std::runtime_error{"Unreachable code reached in TypeToString"};
-        }
+        default:
+            THROW_NOT_IMPLEMENTED;
     }
 }

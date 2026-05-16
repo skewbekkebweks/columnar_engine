@@ -2,6 +2,7 @@
 
 #include "spdlog/spdlog.h"
 
+#include "error.h"
 #include "file_writer.h"
 
 ColumnarWriter::ColumnarWriter(const std::string& filename, const Schema& schema)
@@ -10,23 +11,23 @@ ColumnarWriter::ColumnarWriter(const std::string& filename, const Schema& schema
 
 void ColumnarWriter::AddRowGroup(const std::vector<std::unique_ptr<Column>>& columns) {
     if (columns.size() != metadata_.GetColumnsCount()) {
-        throw std::runtime_error{"actual columns count is different from metadata's columns count"};
+        THROW_RUNTIME_ERROR("actual columns count is different from metadata's columns count");
     }
 
     size_t expected_size = columns[0]->Size();
     metadata_.AddRowGroup(output_.tellp(), expected_size);
 
     for (size_t i = 0; i < columns.size(); ++i) {
-        spdlog::debug("ColumnarWriter::AddRowGroup: " + std::to_string(i));
+        spdlog::debug("ColumnarWriter::AddRowGroup: {}", i);
         if (columns[i]->Size() != expected_size) {
-            throw std::runtime_error{"columns[" + std::to_string(i) +
-                                     "] and columns[0] have different size"};
+            THROW_RUNTIME_ERROR("columns[" + std::to_string(i) +
+                                "] and columns[0] have different size");
         }
         columns[i]->Write(output_);
     }
 }
 
-void ColumnarWriter::Finalize() {
+void ColumnarWriter::Finalize() && {
     if (is_finalized_) {
         return;
     }

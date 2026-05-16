@@ -1,27 +1,32 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
 #include <chrono>
 
+#include "error.h"
 #include "schema.h"
 #include "column.h"
 #include "csv_reader.h"
 #include "columnar_writer.h"
 
-static constexpr size_t kRowGroupSize = 100;
+static constexpr size_t kRowGroupSize = 50000;
 
 ABSL_FLAG(std::string, input, "", "Input file");
 ABSL_FLAG(std::string, output, "", "Output file");
 ABSL_FLAG(std::string, schema, "", "Schema file");
+ABSL_FLAG(std::string, delimiter, ",", "Field delimiter character");
 
 int main(int argc, char** argv) {
-    spdlog::set_level(spdlog::level::level_enum::warn);
+    spdlog::cfg::load_env_levels();
 
     absl::ParseCommandLine(argc, argv);
 
     std::string input_file = absl::GetFlag(FLAGS_input);
     std::string output_file = absl::GetFlag(FLAGS_output);
     std::string schema_file = absl::GetFlag(FLAGS_schema);
+    std::string delimiter_str = absl::GetFlag(FLAGS_delimiter);
+    char delimiter = delimiter_str.empty() ? ',' : delimiter_str[0];
 
     if (input_file.empty()) {
         std::cerr << "--input <input-csv-file> is required" << std::endl;
@@ -40,8 +45,8 @@ int main(int argc, char** argv) {
 
     Schema schema = Schema::FromCsv(schema_file);
 
-    CsvReader input_reader{input_file};
-    ColumnarWriter output_writer{output_file + ".skewdb", schema};
+    CsvReader input_reader{input_file, CsvConfig{delimiter}};
+    ColumnarWriter output_writer{output_file, schema};
 
     while (true) {
         std::vector<std::unique_ptr<Column>> cur_row_group;
@@ -57,10 +62,8 @@ int main(int argc, char** argv) {
                     cur_row_group.push_back(std::make_unique<ColumnString>());
                     break;
                 }
-                default: {
-                    spdlog::error("Unreachable code reached in CsvToColumnar");
-                    throw std::runtime_error{"Unreachable code reached in CsvToColumnar"};
-                }
+                default:
+                    THROW_NOT_IMPLEMENTED;
             }
         }
 
@@ -69,9 +72,8 @@ int main(int argc, char** argv) {
         while (auto row_opt = input_reader.ReadRow()) {
             std::vector<std::string> row = std::move(row_opt.value());
             if (row.size() != schema.Size()) {
-                throw std::runtime_error{"Csv file has " + std::to_string(row.size()) +
-                                         " columns, but schema has " +
-                                         std::to_string(schema.Size())};
+                THROW_RUNTIME_ERROR("Csv file has " + std::to_string(row.size()) +
+                                    " columns, but schema has " + std::to_string(schema.Size()));
             }
 
             for (size_t i = 0; i < row.size(); ++i) {
@@ -91,7 +93,7 @@ int main(int argc, char** argv) {
         output_writer.AddRowGroup(cur_row_group);
     }
 
-    output_writer.Finalize();
+    std::move(output_writer).Finalize();
 
     auto end_time = std::chrono::steady_clock::now();
     auto duration =

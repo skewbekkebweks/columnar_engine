@@ -21,7 +21,7 @@ size_t Metadata::GetColumnsCount() const {
 size_t Metadata::GetRowGroupsCount() const {
     return offsets_.size();
 }
-Schema Metadata::GetSchema() const {
+const Schema& Metadata::GetSchema() const {
     return schema_;
 }
 const std::vector<size_t>& Metadata::GetOffsets() const {

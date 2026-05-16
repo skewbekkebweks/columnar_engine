@@ -13,7 +13,7 @@ public:
 
     size_t GetColumnsCount() const;
     size_t GetRowGroupsCount() const;
-    Schema GetSchema() const;
+    const Schema& GetSchema() const;
     const std::vector<size_t>& GetOffsets() const;
     const std::vector<size_t>& GetRowCounts() const;
 

@@ -1,6 +1,7 @@
 #include "schema.h"
 
 #include "csv_reader.h"
+#include "error.h"
 #include "type.h"
 #include <unordered_set>
 
@@ -12,7 +13,7 @@ Schema Schema::FromCsv(const std::string& filename, CsvConfig config) {
     while (auto row_opt = reader.ReadRow()) {
         std::vector<std::string> row = row_opt.value();
         if (row.size() != 2) {
-            throw std::runtime_error{"Each row in schema.csv should have 2 columns"};
+            THROW_RUNTIME_ERROR("Each row in schema.csv should have 2 columns");
         }
         schema.AddColumn(Schema::ColumnInfo{row[0], StringToType(row[1])});
     }
@@ -35,7 +36,7 @@ Schema::Schema(std::vector<Schema::ColumnInfo> columns) : columns_(std::move(col
 
 void Schema::AddColumn(Schema::ColumnInfo column) {
     if (column_names_.count(column.name)) {
-        throw std::runtime_error{"Schema has column " + column.name + " twice"};
+        THROW_RUNTIME_ERROR("Schema has column " + column.name + " twice");
     }
     column_names_.insert(column.name);
     columns_.push_back(column);
