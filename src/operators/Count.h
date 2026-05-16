@@ -2,7 +2,7 @@
 
 #include <memory>
 #include <string>
-#include "operators/Operator.h"
+#include "operators/operator.h"
 
 class Count : public Operator {
 public:

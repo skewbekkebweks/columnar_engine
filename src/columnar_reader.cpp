@@ -42,42 +42,31 @@ std::optional<std::vector<std::unique_ptr<Column>>> ColumnarReader::ReadRowGroup
         col_indices = &all_indices;
     }
 
+    const auto& col_offsets = metadata_.GetColOffsets()[cur_row_group_idx];
+
     std::vector<std::unique_ptr<Column>> result;
     result.reserve(col_indices->size());
 
-    size_t want = 0;
-    for (size_t col_pos = 0; col_pos < columns.size(); ++col_pos) {
-        bool read_this = want < col_indices->size() && (*col_indices)[want] == col_pos;
+    for (size_t idx : *col_indices) {
+        input_.seekg(static_cast<std::streamoff>(col_offsets[idx]));
 
-        switch (columns[col_pos].type) {
-            case Type::Int64:
-                if (read_this) {
-                    auto col = std::make_unique<ColumnInt64>();
-                    for (size_t i = 0; i < row_count; ++i) {
-                        col->PushBack(Value{Read<int64_t>(input_)});
-                    }
-                    result.push_back(std::move(col));
-                    ++want;
-                } else {
-                    input_.seekg(static_cast<std::streamoff>(row_count * sizeof(int64_t)),
-                                 std::ios::cur);
+        switch (columns[idx].type) {
+            case Type::Int64: {
+                auto col = std::make_unique<ColumnInt64>();
+                for (size_t i = 0; i < row_count; ++i) {
+                    col->PushBack(Value{Read<int64_t>(input_)});
                 }
+                result.push_back(std::move(col));
                 break;
-            case Type::String:
-                if (read_this) {
-                    auto col = std::make_unique<ColumnString>();
-                    for (size_t i = 0; i < row_count; ++i) {
-                        col->PushBack(Value{Read<std::string>(input_)});
-                    }
-                    result.push_back(std::move(col));
-                    ++want;
-                } else {
-                    std::string discard;
-                    for (size_t i = 0; i < row_count; ++i) {
-                        std::getline(input_, discard, '\0');
-                    }
+            }
+            case Type::String: {
+                auto col = std::make_unique<ColumnString>();
+                for (size_t i = 0; i < row_count; ++i) {
+                    col->PushBack(Value{Read<std::string>(input_)});
                 }
+                result.push_back(std::move(col));
                 break;
+            }
             default:
                 THROW_NOT_IMPLEMENTED;
         }
@@ -118,14 +107,19 @@ void ColumnarReader::ScanMetadata() {
 
     metadata_.SetSchema(schema);
 
-    size_t metadata_offset = schema_offset - 2 * sizeof(size_t) * row_groups_count;
+    size_t metadata_offset =
+        schema_offset - (2 + columns_count) * sizeof(size_t) * row_groups_count;
     input_.seekg(metadata_offset, std::ios::beg);
 
     for (size_t i = 0; i < row_groups_count; ++i) {
         size_t offset = Read<size_t>(input_);
         size_t row_count = Read<size_t>(input_);
         spdlog::debug("Rows count is {}", row_count);
-        metadata_.AddRowGroup(offset, row_count);
+        std::vector<size_t> col_offsets(columns_count);
+        for (size_t j = 0; j < columns_count; ++j) {
+            col_offsets[j] = Read<size_t>(input_);
+        }
+        metadata_.AddRowGroup(offset, row_count, std::move(col_offsets));
     }
 
     input_.seekg(0, std::ios::beg);

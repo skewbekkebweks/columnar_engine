@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 #include "columnar_reader.h"
-#include "operators/Operator.h"
+#include "operators/operator.h"
 #include "schema.h"
 
 class Scan : public Operator {

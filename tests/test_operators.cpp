@@ -1,10 +1,10 @@
 #include <gtest/gtest.h>
 
-#include "operators/Count.h"
-#include "operators/Scan.h"
+#include "operators/count.h"
+#include "operators/scan.h"
 #include "utility.h"
 
-TEST(Operators, Q1) {
+TEST(Operators, Q0) {
     Schema schema({{"UserID", Type::Int64}, {"Name", Type::String}});
     auto path = MakeTempDb("test_q1.skewdb", schema, {
         {"1", "a"},

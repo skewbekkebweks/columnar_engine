@@ -15,7 +15,10 @@ void ColumnarWriter::AddRowGroup(const std::vector<std::unique_ptr<Column>>& col
     }
 
     size_t expected_size = columns[0]->Size();
-    metadata_.AddRowGroup(output_.tellp(), expected_size);
+    size_t rg_offset = output_.tellp();
+
+    std::vector<size_t> col_offsets;
+    col_offsets.reserve(columns.size());
 
     for (size_t i = 0; i < columns.size(); ++i) {
         spdlog::debug("ColumnarWriter::AddRowGroup: {}", i);
@@ -23,8 +26,11 @@ void ColumnarWriter::AddRowGroup(const std::vector<std::unique_ptr<Column>>& col
             THROW_RUNTIME_ERROR("columns[" + std::to_string(i) +
                                 "] and columns[0] have different size");
         }
+        col_offsets.push_back(output_.tellp());
         columns[i]->Write(output_);
     }
+
+    metadata_.AddRowGroup(rg_offset, expected_size, std::move(col_offsets));
 }
 
 void ColumnarWriter::Finalize() && {
@@ -34,8 +40,9 @@ void ColumnarWriter::Finalize() && {
     is_finalized_ = true;
 
     Schema schema = metadata_.GetSchema();
-    std::vector<size_t> offsets = metadata_.GetOffsets();
-    std::vector<size_t> row_counts = metadata_.GetRowCounts();
+    const auto& offsets = metadata_.GetOffsets();
+    const auto& row_counts = metadata_.GetRowCounts();
+    const auto& col_offsets = metadata_.GetColOffsets();
 
     spdlog::debug("ColumnarWriter::Finalize " + std::to_string(output_.tellp()) + " " +
                   std::to_string(offsets.size()));
@@ -43,6 +50,9 @@ void ColumnarWriter::Finalize() && {
     for (size_t i = 0; i < offsets.size(); ++i) {
         Write(output_, offsets[i]);
         Write(output_, row_counts[i]);
+        for (size_t col_offset : col_offsets[i]) {
+            Write(output_, col_offset);
+        }
     }
 
     size_t schema_offset = output_.tellp();

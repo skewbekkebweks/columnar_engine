@@ -1,4 +1,4 @@
-#include "operators/Count.h"
+#include "operators/count.h"
 
 #include "column.h"
 

@@ -3,3 +3,5 @@
 ./bin/columnar_to_csv --input ../data/hits_sample_test.skewdb --output ../data/hits_sample_test.csv
 
 ./bin/run_queries ../data/hits_sample.skewdb all
+
+clang-format -i ../src/*.cpp ../src/*.h ../src/*/*.cpp ../src/*/*.h

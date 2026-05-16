@@ -4,9 +4,11 @@
 #include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
 
-#include "operators/Count.h"
-#include "operators/Operator.h"
-#include "operators/Scan.h"
+#include "operators/count.h"
+#include "operators/expression.h"
+#include "operators/filter.h"
+#include "operators/operator.h"
+#include "operators/scan.h"
 #include "schema.h"
 #include "value.h"
 
@@ -15,6 +17,11 @@ using QueryGenerator = std::function<std::unique_ptr<Operator>(const std::string
 static const std::vector<QueryGenerator> kQueries = {
     [](const std::string& db) {
         return std::make_unique<Count>(std::make_unique<Scan>(db, Schema()));
+    },
+    [](const std::string& db) {
+        return std::make_unique<Count>(std::make_unique<Filter>(
+            std::make_unique<Scan>(db, Schema({{"AdvEngineID", Type::Int64}})),
+            Ne(MakeRef("AdvEngineID"), MakeConst(int64_t{0}))));
     },
 };
 
@@ -38,7 +45,7 @@ static void RunQuery(size_t idx, const std::string& db) {
     auto duration =
         std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
 
-    std::cerr << "Q" << (idx + 1) << ": " << static_cast<double>(duration) / 1000 << "s\n";
+    std::cerr << "Q" << idx << ": " << static_cast<double>(duration) / 1000 << "s\n";
 }
 
 int main(int argc, char** argv) {
@@ -58,10 +65,11 @@ int main(int argc, char** argv) {
             RunQuery(i, db);
         }
         auto end_time = std::chrono::steady_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+        auto duration =
+            std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
         std::cerr << "total: " << static_cast<double>(duration) / 1000 << "s\n";
     } else {
-        size_t idx = std::stoi(query_arg) - 1;
+        size_t idx = std::stoi(query_arg);
         if (idx >= kQueries.size()) {
             std::cerr << "Q" << query_arg << " not implemented yet\n";
             return 1;

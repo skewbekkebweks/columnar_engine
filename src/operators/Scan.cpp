@@ -1,10 +1,9 @@
-#include "operators/Scan.h"
+#include "operators/scan.h"
 
 #include <algorithm>
 #include "error.h"
 
-Scan::Scan(std::string filename, Schema projection)
-    : reader_(std::move(filename)) {
+Scan::Scan(std::string filename, Schema projection) : reader_(std::move(filename)) {
     const auto& proj_cols = projection.GetColumns();
     if (proj_cols.empty()) {
         return;
