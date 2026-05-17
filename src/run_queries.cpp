@@ -4,6 +4,8 @@
 #include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
 
+#include "operators/aggregate.h"
+#include "operators/aggregator.h"
 #include "operators/count.h"
 #include "operators/expression.h"
 #include "operators/filter.h"
@@ -23,12 +25,23 @@ static const std::vector<QueryGenerator> kQueries = {
             std::make_unique<Scan>(db, Schema({{"AdvEngineID", Type::Int64}})),
             Ne(MakeRef("AdvEngineID"), MakeConst(int64_t{0}))));
     },
+    [](const std::string& db) {
+        std::vector<std::string> names{"SUM(AdvEngineID)", "COUNT(*)", "AVG(ResolutionWidth)"};
+        std::vector<std::unique_ptr<Aggregator>> aggs;
+        aggs.push_back(MakeSumAgg(MakeRef("AdvEngineID")));
+        aggs.push_back(MakeCountAgg());
+        aggs.push_back(MakeAvgAgg(MakeRef("ResolutionWidth")));
+        return std::make_unique<Aggregate>(
+            std::make_unique<Scan>(db, Schema({{"AdvEngineID", Type::Int64},
+                                               {"ResolutionWidth", Type::Int64}})),
+            std::move(names), std::move(aggs));
+    },
 };
 
 static void PrintBlock(const Block& block) {
     for (size_t row = 0; row < block.row_count; ++row) {
         for (size_t col = 0; col < block.names.size(); ++col) {
-            std::cout << ToString(block.columns[col]->Get(row)) << '\t';
+            std::cout << ToString(block.columns[col]->Get(row)) << ',';
         }
         std::cout << '\n';
     }
