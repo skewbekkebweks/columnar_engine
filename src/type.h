@@ -4,6 +4,7 @@
 
 enum class Type {
     Int64,
+    Int128,
     String,
 };
 

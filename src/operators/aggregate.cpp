@@ -1,7 +1,6 @@
 #include "operators/aggregate.h"
 
 #include "column.h"
-#include "type.h"
 
 Aggregate::Aggregate(std::unique_ptr<Operator> child, std::vector<std::string> names,
                      std::vector<std::unique_ptr<Aggregator>> aggs)
@@ -26,8 +25,7 @@ std::optional<Block> Aggregate::Next() {
     result.row_count = 1;
     for (size_t i = 0; i < aggs_.size(); ++i) {
         Value val = aggs_[i]->Result();
-        Type type = std::holds_alternative<int64_t>(val) ? Type::Int64 : Type::String;
-        auto col = MakeColumn(type);
+        auto col = MakeColumn(TypeOf(val));
         col->PushBack(val);
         result.AddColumn(names_[i], std::move(col));
     }

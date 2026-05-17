@@ -44,6 +44,24 @@ private:
     std::vector<int64_t> data_;
 };
 
+class ColumnInt128 : public Column {
+public:
+    Type GetType() const override;
+
+    void PushBack(const std::string& value) override;
+    void PushBack(const Value& value) override;
+
+    size_t Size() const override;
+
+    std::string operator[](size_t idx) const override;
+    Value Get(size_t idx) const override;
+
+    void Write(std::ofstream& output) override;
+
+private:
+    std::vector<__int128> data_;
+};
+
 class ColumnString : public Column {
 public:
     Type GetType() const override;

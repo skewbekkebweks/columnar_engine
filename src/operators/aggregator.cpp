@@ -1,7 +1,6 @@
 #include "operators/aggregator.h"
 
-SumAggregator::SumAggregator(std::unique_ptr<Expression> expr)
-    : expr_(std::move(expr)), sum_(int64_t{0}) {
+SumAggregator::SumAggregator(std::unique_ptr<Expression> expr) : expr_(std::move(expr)) {
 }
 
 void SumAggregator::Accumulate(const Block& block, size_t row_idx) {
@@ -20,8 +19,7 @@ Value CountAggregator::Result() const {
     return int64_t{count_};
 }
 
-AvgAggregator::AvgAggregator(std::unique_ptr<Expression> expr)
-    : expr_(std::move(expr)), sum_(int64_t{0}) {
+AvgAggregator::AvgAggregator(std::unique_ptr<Expression> expr) : expr_(std::move(expr)) {
 }
 
 void AvgAggregator::Accumulate(const Block& block, size_t row_idx) {
@@ -31,7 +29,7 @@ void AvgAggregator::Accumulate(const Block& block, size_t row_idx) {
 
 Value AvgAggregator::Result() const {
     if (count_ == 0) {
-        return int64_t{0};
+        return __int128{0};
     }
     return Div(sum_, Value{int64_t{count_}});
 }

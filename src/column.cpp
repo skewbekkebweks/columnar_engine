@@ -7,6 +7,8 @@ std::unique_ptr<Column> MakeColumn(Type type) {
     switch (type) {
         case Type::Int64:
             return std::make_unique<ColumnInt64>();
+        case Type::Int128:
+            return std::make_unique<ColumnInt128>();
         case Type::String:
             return std::make_unique<ColumnString>();
         default:
@@ -48,6 +50,36 @@ void ColumnInt64::Write(std::ofstream& output) {
     for (int64_t value : data_) {
         ::Write(output, value);
     }
+}
+
+// Int128
+
+Type ColumnInt128::GetType() const {
+    return Type::Int128;
+}
+
+void ColumnInt128::PushBack(const std::string&) {
+    THROW_NOT_IMPLEMENTED;
+}
+
+void ColumnInt128::PushBack(const Value& value) {
+    data_.push_back(std::get<__int128>(value));
+}
+
+size_t ColumnInt128::Size() const {
+    return data_.size();
+}
+
+std::string ColumnInt128::operator[](size_t idx) const {
+    return ToString(Value{data_[idx]});
+}
+
+Value ColumnInt128::Get(size_t idx) const {
+    return data_[idx];
+}
+
+void ColumnInt128::Write(std::ofstream&) {
+    THROW_NOT_IMPLEMENTED;
 }
 
 // String

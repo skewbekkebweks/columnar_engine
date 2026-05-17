@@ -20,7 +20,7 @@ public:
 
 private:
     std::unique_ptr<Expression> expr_;
-    Value sum_;
+    Value sum_ = __int128{0};
 };
 
 class CountAggregator : public Aggregator {
@@ -40,7 +40,7 @@ public:
 
 private:
     std::unique_ptr<Expression> expr_;
-    Value sum_;
+    Value sum_ = __int128{0};
     int64_t count_ = 0;
 };
 

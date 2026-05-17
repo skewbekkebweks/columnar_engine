@@ -5,7 +5,11 @@
 #include <string>
 #include <variant>
 
-using Value = std::variant<int64_t, std::string>;
+#include "type.h"
+
+using Value = std::variant<int64_t, __int128, std::string>;
+
+Type TypeOf(const Value& v);
 
 Value Add(const Value& a, const Value& b);
 Value Div(const Value& a, const Value& b);

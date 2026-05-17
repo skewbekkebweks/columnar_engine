@@ -32,9 +32,17 @@ static const std::vector<QueryGenerator> kQueries = {
         aggs.push_back(MakeCountAgg());
         aggs.push_back(MakeAvgAgg(MakeRef("ResolutionWidth")));
         return std::make_unique<Aggregate>(
-            std::make_unique<Scan>(db, Schema({{"AdvEngineID", Type::Int64},
-                                               {"ResolutionWidth", Type::Int64}})),
+            std::make_unique<Scan>(
+                db, Schema({{"AdvEngineID", Type::Int64}, {"ResolutionWidth", Type::Int64}})),
             std::move(names), std::move(aggs));
+    },
+    [](const std::string& db) {
+        std::vector<std::string> names{"AVG(UserID)"};
+        std::vector<std::unique_ptr<Aggregator>> aggs;
+        aggs.push_back(MakeAvgAgg(MakeRef("UserID")));
+        return std::make_unique<Aggregate>(
+            std::make_unique<Scan>(db, Schema({{"UserID", Type::Int64}})), std::move(names),
+            std::move(aggs));
     },
 };
 
@@ -61,7 +69,8 @@ static void RunQuery(size_t idx, const std::string& db) {
     auto duration =
         std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
 
-    std::cerr << "Q" << std::setfill('0') << std::setw(2) << idx << ": " << static_cast<double>(duration) / 1000 << "s\n";
+    std::cerr << "Q" << std::setfill('0') << std::setw(2) << idx << ": "
+              << static_cast<double>(duration) / 1000 << "s\n";
 }
 
 int main(int argc, char** argv) {
@@ -87,7 +96,8 @@ int main(int argc, char** argv) {
     } else {
         size_t idx = std::stoi(query_arg);
         if (idx >= kQueries.size()) {
-            std::cerr << "Q" << std::setfill('0') << std::setw(2) << query_arg << " not implemented yet\n";
+            std::cerr << "Q" << std::setfill('0') << std::setw(2) << query_arg
+                      << " not implemented yet\n";
             return 1;
         }
         RunQuery(idx, db);
