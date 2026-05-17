@@ -41,7 +41,10 @@ static const std::vector<QueryGenerator> kQueries = {
 static void PrintBlock(const Block& block) {
     for (size_t row = 0; row < block.row_count; ++row) {
         for (size_t col = 0; col < block.names.size(); ++col) {
-            std::cout << ToString(block.columns[col]->Get(row)) << ',';
+            if (col != 0) {
+                std::cout << ',';
+            }
+            std::cout << ToString(block.columns[col]->Get(row));
         }
         std::cout << '\n';
     }
@@ -58,7 +61,7 @@ static void RunQuery(size_t idx, const std::string& db) {
     auto duration =
         std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
 
-    std::cerr << "Q" << idx << ": " << static_cast<double>(duration) / 1000 << "s\n";
+    std::cerr << "Q" << std::setfill('0') << std::setw(2) << idx << ": " << static_cast<double>(duration) / 1000 << "s\n";
 }
 
 int main(int argc, char** argv) {
@@ -84,7 +87,7 @@ int main(int argc, char** argv) {
     } else {
         size_t idx = std::stoi(query_arg);
         if (idx >= kQueries.size()) {
-            std::cerr << "Q" << query_arg << " not implemented yet\n";
+            std::cerr << "Q" << std::setfill('0') << std::setw(2) << query_arg << " not implemented yet\n";
             return 1;
         }
         RunQuery(idx, db);
