@@ -10,6 +10,10 @@ Type StringToType(const std::string& str) {
         return Type::Int128;
     } else if (str == "string") {
         return Type::String;
+    } else if (str == "timestamp") {
+        return Type::Timestamp;
+    } else if (str == "date") {
+        return Type::Date;
     }
     THROW_RUNTIME_ERROR("unknown type: " + str);
 }
@@ -22,6 +26,10 @@ std::string TypeToString(Type type) {
             return "int128";
         case Type::String:
             return "string";
+        case Type::Timestamp:
+            return "timestamp";
+        case Type::Date:
+            return "date";
         default:
             THROW_NOT_IMPLEMENTED;
     }

@@ -67,6 +67,22 @@ std::optional<std::vector<std::unique_ptr<Column>>> ColumnarReader::ReadRowGroup
                 result.push_back(std::move(col));
                 break;
             }
+            case Type::Timestamp: {
+                auto col = std::make_unique<ColumnTimestamp>();
+                for (size_t i = 0; i < row_count; ++i) {
+                    col->PushBack(Value{Read<std::string>(input_)});
+                }
+                result.push_back(std::move(col));
+                break;
+            }
+            case Type::Date: {
+                auto col = std::make_unique<ColumnDate>();
+                for (size_t i = 0; i < row_count; ++i) {
+                    col->PushBack(Value{Read<std::string>(input_)});
+                }
+                result.push_back(std::move(col));
+                break;
+            }
             default:
                 THROW_NOT_IMPLEMENTED;
         }

@@ -38,7 +38,7 @@ public:
     std::string operator[](size_t idx) const override;
     Value Get(size_t idx) const override;
 
-    void Write(std::ofstream& output);
+    void Write(std::ofstream& output) override;
 
 private:
     std::vector<int64_t> data_;
@@ -74,7 +74,43 @@ public:
     std::string operator[](size_t idx) const override;
     Value Get(size_t idx) const override;
 
-    void Write(std::ofstream& output);
+    void Write(std::ofstream& output) override;
+
+private:
+    std::vector<std::string> data_;
+};
+
+class ColumnTimestamp : public Column {
+public:
+    Type GetType() const override;
+
+    void PushBack(const std::string& value) override;
+    void PushBack(const Value& value) override;
+
+    size_t Size() const override;
+
+    std::string operator[](size_t idx) const override;
+    Value Get(size_t idx) const override;
+
+    void Write(std::ofstream& output) override;
+
+private:
+    std::vector<std::string> data_;
+};
+
+class ColumnDate : public Column {
+public:
+    Type GetType() const override;
+
+    void PushBack(const std::string& value) override;
+    void PushBack(const Value& value) override;
+
+    size_t Size() const override;
+
+    std::string operator[](size_t idx) const override;
+    Value Get(size_t idx) const override;
+
+    void Write(std::ofstream& output) override;
 
 private:
     std::vector<std::string> data_;

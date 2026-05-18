@@ -11,6 +11,10 @@ std::unique_ptr<Column> MakeColumn(Type type) {
             return std::make_unique<ColumnInt128>();
         case Type::String:
             return std::make_unique<ColumnString>();
+        case Type::Timestamp:
+            return std::make_unique<ColumnTimestamp>();
+        case Type::Date:
+            return std::make_unique<ColumnDate>();
         default:
             THROW_NOT_IMPLEMENTED;
     }
@@ -109,6 +113,70 @@ Value ColumnString::Get(size_t idx) const {
 }
 
 void ColumnString::Write(std::ofstream& output) {
+    for (const std::string& value : data_) {
+        ::Write(output, value);
+    }
+}
+
+// Timestamp
+
+Type ColumnTimestamp::GetType() const {
+    return Type::Timestamp;
+}
+
+void ColumnTimestamp::PushBack(const std::string& value) {
+    data_.push_back(value);
+}
+
+void ColumnTimestamp::PushBack(const Value& value) {
+    data_.push_back(std::get<std::string>(value));
+}
+
+size_t ColumnTimestamp::Size() const {
+    return data_.size();
+}
+
+std::string ColumnTimestamp::operator[](size_t idx) const {
+    return data_[idx];
+}
+
+Value ColumnTimestamp::Get(size_t idx) const {
+    return data_[idx];
+}
+
+void ColumnTimestamp::Write(std::ofstream& output) {
+    for (const std::string& value : data_) {
+        ::Write(output, value);
+    }
+}
+
+// Date
+
+Type ColumnDate::GetType() const {
+    return Type::Date;
+}
+
+void ColumnDate::PushBack(const std::string& value) {
+    data_.push_back(value);
+}
+
+void ColumnDate::PushBack(const Value& value) {
+    data_.push_back(std::get<std::string>(value));
+}
+
+size_t ColumnDate::Size() const {
+    return data_.size();
+}
+
+std::string ColumnDate::operator[](size_t idx) const {
+    return data_[idx];
+}
+
+Value ColumnDate::Get(size_t idx) const {
+    return data_[idx];
+}
+
+void ColumnDate::Write(std::ofstream& output) {
     for (const std::string& value : data_) {
         ::Write(output, value);
     }

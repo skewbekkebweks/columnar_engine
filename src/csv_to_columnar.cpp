@@ -53,18 +53,7 @@ int main(int argc, char** argv) {
         cur_row_group.reserve(schema.Size());
 
         for (auto column : schema.GetColumns()) {
-            switch (column.type) {
-                case Type::Int64: {
-                    cur_row_group.push_back(std::make_unique<ColumnInt64>());
-                    break;
-                }
-                case Type::String: {
-                    cur_row_group.push_back(std::make_unique<ColumnString>());
-                    break;
-                }
-                default:
-                    THROW_NOT_IMPLEMENTED;
-            }
+            cur_row_group.push_back(MakeColumn(column.type));
         }
 
         size_t cur_row_group_size = 0;

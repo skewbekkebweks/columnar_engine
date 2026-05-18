@@ -44,6 +44,31 @@ static const std::vector<QueryGenerator> kQueries = {
             std::make_unique<Scan>(db, Schema({{"UserID", Type::Int64}})), std::move(names),
             std::move(aggs));
     },
+    [](const std::string& db) {
+        std::vector<std::string> names{"COUNT(DISTINCT UserID)"};
+        std::vector<std::unique_ptr<Aggregator>> aggs;
+        aggs.push_back(MakeCountDistinctAgg(MakeRef("UserID")));
+        return std::make_unique<Aggregate>(
+            std::make_unique<Scan>(db, Schema({{"UserID", Type::Int64}})), std::move(names),
+            std::move(aggs));
+    },
+    [](const std::string& db) {
+        std::vector<std::string> names{"COUNT(DISTINCT SearchPhrase)"};
+        std::vector<std::unique_ptr<Aggregator>> aggs;
+        aggs.push_back(MakeCountDistinctAgg(MakeRef("SearchPhrase")));
+        return std::make_unique<Aggregate>(
+            std::make_unique<Scan>(db, Schema({{"SearchPhrase", Type::String}})), std::move(names),
+            std::move(aggs));
+    },
+    [](const std::string& db) {
+        std::vector<std::string> names{"MIN(EventDate)", "MAX(EventDate)"};
+        std::vector<std::unique_ptr<Aggregator>> aggs;
+        aggs.push_back(MakeMinAgg(MakeRef("EventDate")));
+        aggs.push_back(MakeMaxAgg(MakeRef("EventDate")));
+        return std::make_unique<Aggregate>(
+            std::make_unique<Scan>(db, Schema({{"EventDate", Type::Int64}})), std::move(names),
+            std::move(aggs));
+    },
 };
 
 static void PrintBlock(const Block& block) {
