@@ -22,7 +22,6 @@ bool LessOrEqual(const Value& a, const Value& b);
 bool GreaterOrEqual(const Value& a, const Value& b);
 
 bool IsZero(const Value& v);
-bool IsEmpty(const Value& v);
 
 std::string ToString(const Value& v);
 

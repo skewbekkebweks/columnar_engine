@@ -6,8 +6,9 @@ template <typename T>
 static constexpr bool kIsNumeric = std::is_arithmetic_v<T> || std::is_same_v<T, __int128>;
 
 static std::string Int128ToString(__int128 x) {
-    if (x == 0)
+    if (x == 0) {
         return "0";
+    }
     bool negative = x < 0;
     if (negative) {
         x = -x;
@@ -107,13 +108,6 @@ bool IsZero(const Value& v) {
         v);
 }
 
-bool IsEmpty(const Value& v) {
-    if (const auto* s = std::get_if<std::string>(&v)) {
-        return s->empty();
-    }
-    return false;
-}
-
 std::string ToString(const Value& v) {
     return std::visit(
         [](auto&& x) -> std::string {
@@ -134,7 +128,9 @@ size_t ValueHash::operator()(const Value& v) const {
         [](auto&& x) -> size_t {
             using X = std::decay_t<decltype(x)>;
             if constexpr (std::is_same_v<X, __int128>) {
-                THROW_NOT_IMPLEMENTED;
+                return std::hash<uint64_t>{}(static_cast<uint64_t>(x)) ^
+                       std::hash<uint64_t>{}(
+                           static_cast<uint64_t>(static_cast<unsigned __int128>(x) >> 64));
             } else {
                 return std::hash<X>{}(x);
             }

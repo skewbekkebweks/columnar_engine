@@ -79,6 +79,8 @@ private:
     std::optional<Value> max_;
 };
 
+using AggFactory = std::function<std::unique_ptr<Aggregator>()>;
+
 std::unique_ptr<Aggregator> MakeSumAgg(std::unique_ptr<Expression> expr);
 std::unique_ptr<Aggregator> MakeCountAgg();
 std::unique_ptr<Aggregator> MakeAvgAgg(std::unique_ptr<Expression> expr);

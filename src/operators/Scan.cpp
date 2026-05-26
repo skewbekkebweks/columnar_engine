@@ -3,6 +3,14 @@
 #include <algorithm>
 #include "error.h"
 
+Scan::Scan(std::string filename) : reader_(filename) {
+    const auto& file_cols = reader_.GetSchema().GetColumns();
+    for (size_t i = 0; i < file_cols.size(); ++i) {
+        col_indices_.push_back(i);
+        col_names_.push_back(file_cols[i].name);
+    }
+}
+
 Scan::Scan(std::string filename, Schema projection) : reader_(std::move(filename)) {
     const auto& proj_cols = projection.GetColumns();
     if (proj_cols.empty()) {

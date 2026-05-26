@@ -9,6 +9,7 @@
 
 class Scan : public Operator {
 public:
+    explicit Scan(std::string filename);
     Scan(std::string filename, Schema projection);
     std::optional<Block> Next() override;
 

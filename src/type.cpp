@@ -17,20 +17,3 @@ Type StringToType(const std::string& str) {
     }
     THROW_RUNTIME_ERROR("unknown type: " + str);
 }
-
-std::string TypeToString(Type type) {
-    switch (type) {
-        case Type::Int64:
-            return "int64";
-        case Type::Int128:
-            return "int128";
-        case Type::String:
-            return "string";
-        case Type::Timestamp:
-            return "timestamp";
-        case Type::Date:
-            return "date";
-        default:
-            THROW_NOT_IMPLEMENTED;
-    }
-}

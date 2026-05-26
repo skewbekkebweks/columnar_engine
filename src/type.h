@@ -11,4 +11,3 @@ enum class Type {
 };
 
 Type StringToType(const std::string&);
-std::string TypeToString(Type);

@@ -1,5 +1,7 @@
 #include "operators/expression.h"
 
+#include <regex>
+
 ColumnRef::ColumnRef(std::string name) : name_(std::move(name)) {
 }
 
@@ -34,8 +36,121 @@ static Value BoolVal(bool b) {
     return Value{int64_t{b ? 1 : 0}};
 }
 
+UnaryOp::UnaryOp(std::unique_ptr<Expression> arg, UnaryFn fn)
+    : arg_(std::move(arg)), fn_(std::move(fn)) {
+}
+
+Value UnaryOp::Evaluate(const Block& block, size_t row_idx) const {
+    return fn_(arg_->Evaluate(block, row_idx));
+}
+
+std::unique_ptr<Expression> Eq(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) {
+    return std::make_unique<BinaryOp>(
+        std::move(l), std::move(r),
+        [](const Value& a, const Value& b) { return BoolVal(Equal(a, b)); });
+}
+
 std::unique_ptr<Expression> Ne(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) {
     return std::make_unique<BinaryOp>(
         std::move(l), std::move(r),
         [](const Value& a, const Value& b) { return BoolVal(NotEqual(a, b)); });
+}
+
+std::unique_ptr<Expression> Gt(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) {
+    return std::make_unique<BinaryOp>(
+        std::move(l), std::move(r),
+        [](const Value& a, const Value& b) { return BoolVal(Greater(a, b)); });
+}
+
+std::unique_ptr<Expression> And(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) {
+    return std::make_unique<BinaryOp>(
+        std::move(l), std::move(r),
+        [](const Value& a, const Value& b) { return BoolVal(!IsZero(a) && !IsZero(b)); });
+}
+
+// работает только для "%text%"
+static bool LikeMatch(const std::string& text, const std::string& pattern) {
+    return text.find(pattern.data() + 1, 0, pattern.size() - 2) != std::string::npos;
+}
+
+std::unique_ptr<Expression> Like(std::unique_ptr<Expression> arg, std::string pattern) {
+    return std::make_unique<UnaryOp>(std::move(arg),
+                                     [pat = std::move(pattern)](const Value& v) -> Value {
+                                         return BoolVal(LikeMatch(std::get<std::string>(v), pat));
+                                     });
+}
+
+std::unique_ptr<Expression> NotLike(std::unique_ptr<Expression> arg, std::string pattern) {
+    return std::make_unique<UnaryOp>(std::move(arg),
+                                     [pat = std::move(pattern)](const Value& v) -> Value {
+                                         return BoolVal(!LikeMatch(std::get<std::string>(v), pat));
+                                     });
+}
+
+std::unique_ptr<Expression> StringLength(std::unique_ptr<Expression> arg) {
+    return std::make_unique<UnaryOp>(std::move(arg), [](const Value& v) -> Value {
+        return int64_t{static_cast<int64_t>(std::get<std::string>(v).size())};
+    });
+}
+
+std::unique_ptr<Expression> ExtractMinute(std::unique_ptr<Expression> arg) {
+    return std::make_unique<UnaryOp>(std::move(arg), [](const Value& v) -> Value {
+        const std::string& s = std::get<std::string>(v);
+        return int64_t{std::stoll(s.substr(14, 2))};
+    });
+}
+
+TernaryOp::TernaryOp(std::unique_ptr<Expression> a, std::unique_ptr<Expression> b,
+                     std::unique_ptr<Expression> c, TernaryFn fn)
+    : a_(std::move(a)), b_(std::move(b)), c_(std::move(c)), fn_(std::move(fn)) {
+}
+
+Value TernaryOp::Evaluate(const Block& block, size_t row_idx) const {
+    return fn_(a_->Evaluate(block, row_idx), b_->Evaluate(block, row_idx),
+               c_->Evaluate(block, row_idx));
+}
+
+std::unique_ptr<Expression> Le(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) {
+    return std::make_unique<BinaryOp>(
+        std::move(l), std::move(r),
+        [](const Value& a, const Value& b) { return BoolVal(LessOrEqual(a, b)); });
+}
+
+std::unique_ptr<Expression> Ge(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) {
+    return std::make_unique<BinaryOp>(
+        std::move(l), std::move(r),
+        [](const Value& a, const Value& b) { return BoolVal(GreaterOrEqual(a, b)); });
+}
+
+std::unique_ptr<Expression> Or(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) {
+    return std::make_unique<BinaryOp>(
+        std::move(l), std::move(r),
+        [](const Value& a, const Value& b) { return BoolVal(!IsZero(a) || !IsZero(b)); });
+}
+
+std::unique_ptr<Expression> Plus(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) {
+    return std::make_unique<BinaryOp>(std::move(l), std::move(r),
+                                      [](const Value& a, const Value& b) { return Add(a, b); });
+}
+
+std::unique_ptr<Expression> CaseWhen(std::unique_ptr<Expression> cond,
+                                     std::unique_ptr<Expression> then,
+                                     std::unique_ptr<Expression> otherwise) {
+    return std::make_unique<TernaryOp>(
+        std::move(cond), std::move(then), std::move(otherwise),
+        [](const Value& c, const Value& t, const Value& e) { return !IsZero(c) ? t : e; });
+}
+
+std::unique_ptr<Expression> DateTruncMinute(std::unique_ptr<Expression> arg) {
+    return std::make_unique<UnaryOp>(std::move(arg), [](const Value& v) -> Value {
+        const std::string& s = std::get<std::string>(v);
+        return s.substr(0, 16) + ":00";
+    });
+}
+
+std::unique_ptr<Expression> ExtractDomain(std::unique_ptr<Expression> arg) {
+    return std::make_unique<UnaryOp>(std::move(arg), [](const Value& v) -> Value {
+        static const std::regex kPattern{R"(^https?://(?:www\.)?([^/]+)/.*$)"};
+        return std::regex_replace(std::get<std::string>(v), kPattern, "$1");
+    });
 }
