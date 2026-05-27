@@ -16,6 +16,4 @@ public:
 private:
     std::ofstream output_;
     Metadata metadata_;
-
-    bool is_finalized_ = false;
 };

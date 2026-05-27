@@ -34,11 +34,6 @@ void ColumnarWriter::AddRowGroup(const std::vector<std::unique_ptr<Column>>& col
 }
 
 void ColumnarWriter::Finalize() && {
-    if (is_finalized_) {
-        return;
-    }
-    is_finalized_ = true;
-
     Schema schema = metadata_.GetSchema();
     const auto& offsets = metadata_.GetOffsets();
     const auto& row_counts = metadata_.GetRowCounts();

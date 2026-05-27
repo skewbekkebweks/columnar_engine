@@ -21,7 +21,7 @@ public:
     virtual std::string operator[](size_t idx) const = 0;
     virtual Value Get(size_t idx) const = 0;
 
-    virtual void Write(std::ofstream& output) = 0;
+    virtual void Write(std::ofstream& output) const = 0;
 };
 
 std::unique_ptr<Column> MakeColumn(Type type);
@@ -38,7 +38,7 @@ public:
     std::string operator[](size_t idx) const override;
     Value Get(size_t idx) const override;
 
-    void Write(std::ofstream& output) override;
+    void Write(std::ofstream& output) const override;
 
 private:
     std::vector<int64_t> data_;
@@ -56,7 +56,7 @@ public:
     std::string operator[](size_t idx) const override;
     Value Get(size_t idx) const override;
 
-    void Write(std::ofstream& output) override;
+    void Write(std::ofstream& output) const override;
 
 private:
     std::vector<__int128> data_;
@@ -74,7 +74,7 @@ public:
     std::string operator[](size_t idx) const override;
     Value Get(size_t idx) const override;
 
-    void Write(std::ofstream& output) override;
+    void Write(std::ofstream& output) const override;
 
 private:
     std::vector<std::string> data_;
@@ -92,7 +92,7 @@ public:
     std::string operator[](size_t idx) const override;
     Value Get(size_t idx) const override;
 
-    void Write(std::ofstream& output) override;
+    void Write(std::ofstream& output) const override;
 
 private:
     std::vector<std::string> data_;
@@ -110,7 +110,7 @@ public:
     std::string operator[](size_t idx) const override;
     Value Get(size_t idx) const override;
 
-    void Write(std::ofstream& output) override;
+    void Write(std::ofstream& output) const override;
 
 private:
     std::vector<std::string> data_;

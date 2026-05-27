@@ -52,7 +52,7 @@ Value ColumnInt64::Get(size_t idx) const {
     return data_[idx];
 }
 
-void ColumnInt64::Write(std::ofstream& output) {
+void ColumnInt64::Write(std::ofstream& output) const {
     size_t uncompressed_size = data_.size() * sizeof(int64_t);
     const char* raw = reinterpret_cast<const char*>(data_.data());
     auto compressed = CompressLz4(raw, uncompressed_size);
@@ -87,7 +87,7 @@ Value ColumnInt128::Get(size_t idx) const {
     return data_[idx];
 }
 
-void ColumnInt128::Write(std::ofstream&) {
+void ColumnInt128::Write(std::ofstream&) const {
     THROW_NOT_IMPLEMENTED;
 }
 
@@ -117,7 +117,7 @@ Value ColumnString::Get(size_t idx) const {
     return data_[idx];
 }
 
-void ColumnString::Write(std::ofstream& output) {
+void ColumnString::Write(std::ofstream& output) const {
     std::vector<char> raw;
     for (const std::string& s : data_) {
         raw.insert(raw.end(), s.begin(), s.end());
@@ -155,7 +155,7 @@ Value ColumnTimestamp::Get(size_t idx) const {
     return data_[idx];
 }
 
-void ColumnTimestamp::Write(std::ofstream& output) {
+void ColumnTimestamp::Write(std::ofstream& output) const {
     std::vector<char> raw;
     for (const std::string& s : data_) {
         raw.insert(raw.end(), s.begin(), s.end());
@@ -193,7 +193,7 @@ Value ColumnDate::Get(size_t idx) const {
     return data_[idx];
 }
 
-void ColumnDate::Write(std::ofstream& output) {
+void ColumnDate::Write(std::ofstream& output) const {
     std::vector<char> raw;
     for (const std::string& s : data_) {
         raw.insert(raw.end(), s.begin(), s.end());
