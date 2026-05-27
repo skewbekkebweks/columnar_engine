@@ -37,7 +37,6 @@ std::optional<Block> GroupBy::Next() {
     };
 
     ankerl::unordered_dense::map<Key, std::vector<std::unique_ptr<Aggregator>>, KeyHash> groups;
-    std::vector<Key> key_order;
 
     while (auto block = child_->Next()) {
         for (size_t row = 0; row < block->row_count; ++row) {
@@ -46,15 +45,12 @@ std::optional<Block> GroupBy::Next() {
             for (auto& expr : key_exprs_) {
                 key.push_back(expr->Evaluate(*block, row));
             }
-            auto it = groups.find(key);
-            if (it == groups.end()) {
-                key_order.push_back(key);
-                std::vector<std::unique_ptr<Aggregator>> aggs;
-                aggs.reserve(agg_factories_.size());
+            auto [it, inserted] = groups.try_emplace(std::move(key));
+            if (inserted) {
+                it->second.reserve(agg_factories_.size());
                 for (auto& factory : agg_factories_) {
-                    aggs.push_back(factory());
+                    it->second.push_back(factory());
                 }
-                it = groups.emplace(key, std::move(aggs)).first;
             }
             for (auto& agg : it->second) {
                 agg->Accumulate(*block, row);
@@ -62,12 +58,11 @@ std::optional<Block> GroupBy::Next() {
         }
     }
 
-    if (key_order.empty()) {
+    if (groups.empty()) {
         return std::nullopt;
     }
 
-    const Key& first_key = key_order[0];
-    auto& first_aggs = groups.at(first_key);
+    const auto& [first_key, first_aggs] = *groups.begin();
 
     std::vector<std::unique_ptr<Column>> key_cols;
     for (size_t k = 0; k < key_names_.size(); ++k) {
@@ -78,8 +73,7 @@ std::optional<Block> GroupBy::Next() {
         agg_cols.push_back(MakeColumn(TypeOf(first_aggs[a]->Result())));
     }
 
-    for (const Key& key : key_order) {
-        auto& aggs = groups.at(key);
+    for (const auto& [key, aggs] : groups) {
         for (size_t k = 0; k < key_names_.size(); ++k) {
             key_cols[k]->PushBack(key[k]);
         }
@@ -89,7 +83,7 @@ std::optional<Block> GroupBy::Next() {
     }
 
     Block result;
-    result.row_count = key_order.size();
+    result.row_count = groups.size();
     for (size_t k = 0; k < key_names_.size(); ++k) {
         result.AddColumn(key_names_[k], std::move(key_cols[k]));
     }
