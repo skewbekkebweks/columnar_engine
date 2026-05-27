@@ -1,6 +1,8 @@
 #include "column.h"
 
 #include <spdlog/spdlog.h>
+
+#include "compress.h"
 #include "error.h"
 
 std::unique_ptr<Column> MakeColumn(Type type) {
@@ -51,9 +53,12 @@ Value ColumnInt64::Get(size_t idx) const {
 }
 
 void ColumnInt64::Write(std::ofstream& output) {
-    for (int64_t value : data_) {
-        ::Write(output, value);
-    }
+    size_t uncompressed_size = data_.size() * sizeof(int64_t);
+    const char* raw = reinterpret_cast<const char*>(data_.data());
+    auto compressed = CompressLz4(raw, uncompressed_size);
+    ::Write(output, uncompressed_size);
+    ::Write(output, compressed.size());
+    output.write(compressed.data(), compressed.size());
 }
 
 // Int128
@@ -113,9 +118,15 @@ Value ColumnString::Get(size_t idx) const {
 }
 
 void ColumnString::Write(std::ofstream& output) {
-    for (const std::string& value : data_) {
-        ::Write(output, value);
+    std::vector<char> raw;
+    for (const std::string& s : data_) {
+        raw.insert(raw.end(), s.begin(), s.end());
+        raw.push_back('\0');
     }
+    auto compressed = CompressLz4(raw.data(), raw.size());
+    ::Write(output, raw.size());
+    ::Write(output, compressed.size());
+    output.write(compressed.data(), compressed.size());
 }
 
 // Timestamp
@@ -145,9 +156,15 @@ Value ColumnTimestamp::Get(size_t idx) const {
 }
 
 void ColumnTimestamp::Write(std::ofstream& output) {
-    for (const std::string& value : data_) {
-        ::Write(output, value);
+    std::vector<char> raw;
+    for (const std::string& s : data_) {
+        raw.insert(raw.end(), s.begin(), s.end());
+        raw.push_back('\0');
     }
+    auto compressed = CompressLz4(raw.data(), raw.size());
+    ::Write(output, raw.size());
+    ::Write(output, compressed.size());
+    output.write(compressed.data(), compressed.size());
 }
 
 // Date
@@ -177,7 +194,13 @@ Value ColumnDate::Get(size_t idx) const {
 }
 
 void ColumnDate::Write(std::ofstream& output) {
-    for (const std::string& value : data_) {
-        ::Write(output, value);
+    std::vector<char> raw;
+    for (const std::string& s : data_) {
+        raw.insert(raw.end(), s.begin(), s.end());
+        raw.push_back('\0');
     }
+    auto compressed = CompressLz4(raw.data(), raw.size());
+    ::Write(output, raw.size());
+    ::Write(output, compressed.size());
+    output.write(compressed.data(), compressed.size());
 }

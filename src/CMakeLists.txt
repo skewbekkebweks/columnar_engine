@@ -3,6 +3,7 @@ add_subdirectory(operators)
 add_library(engine schema.cpp csv_reader.cpp csv_writer.cpp type.cpp columnar_writer.cpp columnar_reader.cpp metadata.cpp column.cpp value.cpp)
 target_link_libraries(engine
     spdlog::spdlog
+    lz4_static
 )
 
 add_executable(csv_to_columnar csv_to_columnar.cpp)

@@ -36,6 +36,18 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(abseil)
 
+set(LZ4_BUILD_CLI OFF CACHE BOOL "" FORCE)
+set(LZ4_BUILD_LEGACY_LZ4C OFF CACHE BOOL "" FORCE)
+
+FetchContent_Declare(
+  lz4
+  GIT_REPOSITORY https://github.com/lz4/lz4.git
+  GIT_TAG v1.10.0
+  GIT_SHALLOW TRUE
+  SOURCE_SUBDIR build/cmake
+)
+FetchContent_MakeAvailable(lz4)
+
 add_subdirectory(src)
 
 if(BUILD_TESTS)

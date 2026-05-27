@@ -1,9 +1,12 @@
 #include "columnar_reader.h"
 
 #include <numeric>
+
+#include <spdlog/spdlog.h>
+
+#include "compress.h"
 #include "error.h"
 #include "file_reader.h"
-#include <spdlog/spdlog.h>
 
 ColumnarReader::ColumnarReader(const std::string& filename) : input_(filename) {
     ScanMetadata();
@@ -47,14 +50,24 @@ std::optional<std::vector<std::unique_ptr<Column>>> ColumnarReader::ReadRowGroup
     std::vector<std::unique_ptr<Column>> result;
     result.reserve(col_indices->size());
 
+    auto read_column_raw = [&]() -> std::vector<char> {
+        size_t uncompressed_size = Read<size_t>(input_);
+        size_t compressed_size = Read<size_t>(input_);
+        std::vector<char> compressed(compressed_size);
+        input_.read(compressed.data(), static_cast<std::streamsize>(compressed_size));
+        return DecompressLz4(compressed.data(), compressed_size, uncompressed_size);
+    };
+
     for (size_t idx : *col_indices) {
         input_.seekg(static_cast<std::streamoff>(col_offsets[idx]));
+        auto raw = read_column_raw();
+        const char* p = raw.data();
 
         switch (columns[idx].type) {
             case Type::Int64: {
                 auto col = std::make_unique<ColumnInt64>();
                 for (size_t i = 0; i < row_count; ++i) {
-                    col->PushBack(Value{Read<int64_t>(input_)});
+                    col->PushBack(Value{ReadFromBuffer<int64_t>(p)});
                 }
                 result.push_back(std::move(col));
                 break;
@@ -62,7 +75,7 @@ std::optional<std::vector<std::unique_ptr<Column>>> ColumnarReader::ReadRowGroup
             case Type::String: {
                 auto col = std::make_unique<ColumnString>();
                 for (size_t i = 0; i < row_count; ++i) {
-                    col->PushBack(Value{Read<std::string>(input_)});
+                    col->PushBack(Value{ReadFromBuffer<std::string>(p)});
                 }
                 result.push_back(std::move(col));
                 break;
@@ -70,7 +83,7 @@ std::optional<std::vector<std::unique_ptr<Column>>> ColumnarReader::ReadRowGroup
             case Type::Timestamp: {
                 auto col = std::make_unique<ColumnTimestamp>();
                 for (size_t i = 0; i < row_count; ++i) {
-                    col->PushBack(Value{Read<std::string>(input_)});
+                    col->PushBack(Value{ReadFromBuffer<std::string>(p)});
                 }
                 result.push_back(std::move(col));
                 break;
@@ -78,7 +91,7 @@ std::optional<std::vector<std::unique_ptr<Column>>> ColumnarReader::ReadRowGroup
             case Type::Date: {
                 auto col = std::make_unique<ColumnDate>();
                 for (size_t i = 0; i < row_count; ++i) {
-                    col->PushBack(Value{Read<std::string>(input_)});
+                    col->PushBack(Value{ReadFromBuffer<std::string>(p)});
                 }
                 result.push_back(std::move(col));
                 break;
