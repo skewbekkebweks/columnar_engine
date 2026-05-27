@@ -1,7 +1,8 @@
 #include "operators/group_by.h"
 
-#include <unordered_map>
 #include <vector>
+
+#include <ankerl/unordered_dense.h>
 
 #include "column.h"
 #include "value.h"
@@ -35,7 +36,7 @@ std::optional<Block> GroupBy::Next() {
         }
     };
 
-    std::unordered_map<Key, std::vector<std::unique_ptr<Aggregator>>, KeyHash> groups;
+    ankerl::unordered_dense::map<Key, std::vector<std::unique_ptr<Aggregator>>, KeyHash> groups;
     std::vector<Key> key_order;
 
     while (auto block = child_->Next()) {

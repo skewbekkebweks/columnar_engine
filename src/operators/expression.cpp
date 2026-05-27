@@ -1,12 +1,18 @@
 #include "operators/expression.h"
 
-#include <regex>
-
 ColumnRef::ColumnRef(std::string name) : name_(std::move(name)) {
 }
 
 Value ColumnRef::Evaluate(const Block& block, size_t row_idx) const {
-    return block.GetColumn(name_).Get(row_idx);
+    if (!cached_idx_) {
+        for (size_t i = 0; i < block.names.size(); ++i) {
+            if (block.names[i] == name_) {
+                cached_idx_ = i;
+                break;
+            }
+        }
+    }
+    return block.columns[*cached_idx_]->Get(row_idx);
 }
 
 Constant::Constant(Value value) : value_(std::move(value)) {
@@ -150,7 +156,23 @@ std::unique_ptr<Expression> DateTruncMinute(std::unique_ptr<Expression> arg) {
 
 std::unique_ptr<Expression> ExtractDomain(std::unique_ptr<Expression> arg) {
     return std::make_unique<UnaryOp>(std::move(arg), [](const Value& v) -> Value {
-        static const std::regex kPattern{R"(^https?://(?:www\.)?([^/]+)/.*$)"};
-        return std::regex_replace(std::get<std::string>(v), kPattern, "$1");
+        const std::string& url = std::get<std::string>(v);
+        size_t nl = url.find('\n');
+        if (nl != std::string::npos && nl != url.size() - 1) {
+            return url;
+        }
+        size_t start = url.find("://");
+        if (start == std::string::npos) {
+            return url;
+        }
+        start += 3;
+        if (url.compare(start, 4, "www.") == 0) {
+            start += 4;
+        }
+        size_t end = url.find('/', start);
+        if (end == std::string::npos) {
+            return url;
+        }
+        return url.substr(start, end - start);
     });
 }

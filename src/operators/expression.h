@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include "operators/block.h"
 #include "value.h"
@@ -19,6 +20,7 @@ public:
 
 private:
     std::string name_;
+    mutable std::optional<size_t> cached_idx_;
 };
 
 class Constant : public Expression {
