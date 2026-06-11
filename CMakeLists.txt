@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror")
 
-option(BUILD_TESTS "Build tests" OFF)
+option(BUILD_TESTS "Build tests" ON)
 
 include(FetchContent)
 
@@ -35,6 +35,26 @@ FetchContent_Declare(
   GIT_TAG 20250512.0
 )
 FetchContent_MakeAvailable(abseil)
+
+set(LZ4_BUILD_CLI OFF CACHE BOOL "" FORCE)
+set(LZ4_BUILD_LEGACY_LZ4C OFF CACHE BOOL "" FORCE)
+
+FetchContent_Declare(
+  lz4
+  GIT_REPOSITORY https://github.com/lz4/lz4.git
+  GIT_TAG v1.10.0
+  GIT_SHALLOW TRUE
+  SOURCE_SUBDIR build/cmake
+)
+FetchContent_MakeAvailable(lz4)
+
+FetchContent_Declare(
+  unordered_dense
+  GIT_REPOSITORY https://github.com/martinus/unordered_dense.git
+  GIT_TAG v4.4.0
+  GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(unordered_dense)
 
 add_subdirectory(src)
 
