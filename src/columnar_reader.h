@@ -26,6 +26,7 @@ private:
 
     std::ifstream input_;
     Metadata metadata_;
+    std::vector<char> compressed_buf_;
 
     size_t cur_row_group_idx{0};
 };

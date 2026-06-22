@@ -4,11 +4,11 @@ SumAggregator::SumAggregator(std::unique_ptr<Expression> expr) : expr_(std::move
 }
 
 void SumAggregator::Accumulate(const Block& block, size_t row_idx) {
-    sum_ = Add(sum_, expr_->Evaluate(block, row_idx));
+    sum_ += ToInt128(expr_->Evaluate(block, row_idx));
 }
 
 Value SumAggregator::Result() const {
-    return sum_;
+    return Value{sum_};
 }
 
 void CountAggregator::Accumulate(const Block&, size_t) {
@@ -23,7 +23,7 @@ AvgAggregator::AvgAggregator(std::unique_ptr<Expression> expr) : expr_(std::move
 }
 
 void AvgAggregator::Accumulate(const Block& block, size_t row_idx) {
-    sum_ = Add(sum_, expr_->Evaluate(block, row_idx));
+    sum_ += ToInt128(expr_->Evaluate(block, row_idx));
     ++count_;
 }
 
@@ -31,7 +31,7 @@ Value AvgAggregator::Result() const {
     if (count_ == 0) {
         return __int128{0};
     }
-    return Div(sum_, Value{int64_t{count_}});
+    return Value{sum_ / count_};
 }
 
 CountDistinctAggregator::CountDistinctAggregator(std::unique_ptr<Expression> expr)

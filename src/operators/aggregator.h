@@ -2,7 +2,9 @@
 
 #include <memory>
 #include <optional>
-#include <unordered_set>
+
+#include <ankerl/unordered_dense.h>
+
 #include "operators/block.h"
 #include "operators/expression.h"
 #include "value.h"
@@ -22,7 +24,7 @@ public:
 
 private:
     std::unique_ptr<Expression> expr_;
-    Value sum_ = __int128{0};
+    __int128 sum_ = 0;
 };
 
 class CountAggregator : public Aggregator {
@@ -42,7 +44,7 @@ public:
 
 private:
     std::unique_ptr<Expression> expr_;
-    Value sum_ = __int128{0};
+    __int128 sum_ = 0;
     int64_t count_ = 0;
 };
 
@@ -54,7 +56,7 @@ public:
 
 private:
     std::unique_ptr<Expression> expr_;
-    std::unordered_set<Value, ValueHash> seen_;
+    ankerl::unordered_dense::set<Value, ValueHash> seen_;
 };
 
 class MinAggregator : public Aggregator {

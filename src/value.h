@@ -14,6 +14,8 @@ Type TypeOf(const Value& v);
 Value Add(const Value& a, const Value& b);
 Value Div(const Value& a, const Value& b);
 
+__int128 ToInt128(const Value& v);
+
 bool Equal(const Value& a, const Value& b);
 bool NotEqual(const Value& a, const Value& b);
 bool Less(const Value& a, const Value& b);

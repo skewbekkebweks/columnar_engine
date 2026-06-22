@@ -8,23 +8,29 @@ Filter::Filter(std::unique_ptr<Operator> child, std::unique_ptr<Expression> pred
 
 std::optional<Block> Filter::Next() {
     while (auto chunk = child_->Next()) {
-        Block result;
-        for (size_t j = 0; j < chunk->names.size(); ++j) {
-            result.AddColumn(chunk->names[j], MakeColumn(chunk->columns[j]->GetType()));
-        }
-
+        std::vector<size_t> selected;
         for (size_t row = 0; row < chunk->row_count; ++row) {
             if (!IsZero(predicate_->Evaluate(*chunk, row))) {
-                for (size_t j = 0; j < chunk->columns.size(); ++j) {
-                    result.columns[j]->PushBack(chunk->columns[j]->Get(row));
-                }
-                ++result.row_count;
+                selected.push_back(row);
             }
         }
 
-        if (result.row_count > 0) {
-            return result;
+        if (selected.empty()) {
+            continue;
         }
+
+        if (selected.size() == chunk->row_count) {
+            return chunk;
+        }
+
+        Block result;
+        result.row_count = selected.size();
+        for (size_t j = 0; j < chunk->names.size(); ++j) {
+            auto col = MakeColumn(chunk->columns[j]->GetType());
+            col->AppendSelected(*chunk->columns[j], selected);
+            result.AddColumn(chunk->names[j], std::move(col));
+        }
+        return result;
     }
     return std::nullopt;
 }

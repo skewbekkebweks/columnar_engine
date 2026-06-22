@@ -13,4 +13,5 @@ public:
 private:
     std::ofstream output_;
     CsvConfig config_{};
+    std::string buf_;
 };

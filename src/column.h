@@ -22,6 +22,8 @@ public:
     virtual Value Get(size_t idx) const = 0;
 
     virtual void Write(std::ofstream& output) const = 0;
+    virtual void LoadRaw(const char* data, size_t size, size_t row_count) = 0;
+    virtual void AppendSelected(const Column& src, const std::vector<size_t>& rows) = 0;
 };
 
 std::unique_ptr<Column> MakeColumn(Type type);
@@ -39,6 +41,8 @@ public:
     Value Get(size_t idx) const override;
 
     void Write(std::ofstream& output) const override;
+    void LoadRaw(const char* data, size_t size, size_t row_count) override;
+    void AppendSelected(const Column& src, const std::vector<size_t>& rows) override;
 
 private:
     std::vector<int64_t> data_;
@@ -57,6 +61,8 @@ public:
     Value Get(size_t idx) const override;
 
     void Write(std::ofstream& output) const override;
+    void LoadRaw(const char* data, size_t size, size_t row_count) override;
+    void AppendSelected(const Column& src, const std::vector<size_t>& rows) override;
 
 private:
     std::vector<__int128> data_;
@@ -75,6 +81,8 @@ public:
     Value Get(size_t idx) const override;
 
     void Write(std::ofstream& output) const override;
+    void LoadRaw(const char* data, size_t size, size_t row_count) override;
+    void AppendSelected(const Column& src, const std::vector<size_t>& rows) override;
 
 private:
     std::vector<std::string> data_;
@@ -93,6 +101,8 @@ public:
     Value Get(size_t idx) const override;
 
     void Write(std::ofstream& output) const override;
+    void LoadRaw(const char* data, size_t size, size_t row_count) override;
+    void AppendSelected(const Column& src, const std::vector<size_t>& rows) override;
 
 private:
     std::vector<std::string> data_;
@@ -111,6 +121,8 @@ public:
     Value Get(size_t idx) const override;
 
     void Write(std::ofstream& output) const override;
+    void LoadRaw(const char* data, size_t size, size_t row_count) override;
+    void AppendSelected(const Column& src, const std::vector<size_t>& rows) override;
 
 private:
     std::vector<std::string> data_;

@@ -1,9 +1,33 @@
 #include "column.h"
 
+#include <cstring>
+
 #include <spdlog/spdlog.h>
 
 #include "compress.h"
 #include "error.h"
+
+namespace {
+
+template <typename T>
+void AppendRows(std::vector<T>& dst, const std::vector<T>& src, const std::vector<size_t>& rows) {
+    dst.reserve(dst.size() + rows.size());
+    for (size_t r : rows) {
+        dst.push_back(src[r]);
+    }
+}
+
+template <typename Container>
+void LoadStrings(Container& data, const char* raw, size_t row_count) {
+    data.reserve(data.size() + row_count);
+    const char* p = raw;
+    for (size_t i = 0; i < row_count; ++i) {
+        data.emplace_back(p);
+        p += data.back().size() + 1;
+    }
+}
+
+}
 
 std::unique_ptr<Column> MakeColumn(Type type) {
     switch (type) {
@@ -52,6 +76,10 @@ Value ColumnInt64::Get(size_t idx) const {
     return data_[idx];
 }
 
+void ColumnInt64::AppendSelected(const Column& src, const std::vector<size_t>& rows) {
+    AppendRows(data_, static_cast<const ColumnInt64&>(src).data_, rows);
+}
+
 void ColumnInt64::Write(std::ofstream& output) const {
     size_t uncompressed_size = data_.size() * sizeof(int64_t);
     const char* raw = reinterpret_cast<const char*>(data_.data());
@@ -59,6 +87,15 @@ void ColumnInt64::Write(std::ofstream& output) const {
     ::Write(output, uncompressed_size);
     ::Write(output, compressed.size());
     output.write(compressed.data(), compressed.size());
+}
+
+void ColumnInt64::LoadRaw(const char* data, size_t size, size_t row_count) {
+    if (size != row_count * sizeof(int64_t)) {
+        THROW_RUNTIME_ERROR("LoadRaw: size mismatch for int64 column");
+    }
+    size_t old_size = data_.size();
+    data_.resize(old_size + row_count);
+    std::memcpy(data_.data() + old_size, data, size);
 }
 
 // Int128
@@ -87,7 +124,15 @@ Value ColumnInt128::Get(size_t idx) const {
     return data_[idx];
 }
 
+void ColumnInt128::AppendSelected(const Column& src, const std::vector<size_t>& rows) {
+    AppendRows(data_, static_cast<const ColumnInt128&>(src).data_, rows);
+}
+
 void ColumnInt128::Write(std::ofstream&) const {
+    THROW_NOT_IMPLEMENTED;
+}
+
+void ColumnInt128::LoadRaw(const char*, size_t, size_t) {
     THROW_NOT_IMPLEMENTED;
 }
 
@@ -115,6 +160,14 @@ std::string ColumnString::operator[](size_t idx) const {
 
 Value ColumnString::Get(size_t idx) const {
     return data_[idx];
+}
+
+void ColumnString::AppendSelected(const Column& src, const std::vector<size_t>& rows) {
+    AppendRows(data_, static_cast<const ColumnString&>(src).data_, rows);
+}
+
+void ColumnString::LoadRaw(const char* data, size_t, size_t row_count) {
+    LoadStrings(data_, data, row_count);
 }
 
 void ColumnString::Write(std::ofstream& output) const {
@@ -155,6 +208,14 @@ Value ColumnTimestamp::Get(size_t idx) const {
     return data_[idx];
 }
 
+void ColumnTimestamp::AppendSelected(const Column& src, const std::vector<size_t>& rows) {
+    AppendRows(data_, static_cast<const ColumnTimestamp&>(src).data_, rows);
+}
+
+void ColumnTimestamp::LoadRaw(const char* data, size_t, size_t row_count) {
+    LoadStrings(data_, data, row_count);
+}
+
 void ColumnTimestamp::Write(std::ofstream& output) const {
     std::vector<char> raw;
     for (const std::string& s : data_) {
@@ -191,6 +252,14 @@ std::string ColumnDate::operator[](size_t idx) const {
 
 Value ColumnDate::Get(size_t idx) const {
     return data_[idx];
+}
+
+void ColumnDate::AppendSelected(const Column& src, const std::vector<size_t>& rows) {
+    AppendRows(data_, static_cast<const ColumnDate&>(src).data_, rows);
+}
+
+void ColumnDate::LoadRaw(const char* data, size_t, size_t row_count) {
+    LoadStrings(data_, data, row_count);
 }
 
 void ColumnDate::Write(std::ofstream& output) const {

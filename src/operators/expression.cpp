@@ -68,10 +68,46 @@ std::unique_ptr<Expression> Gt(std::unique_ptr<Expression> l, std::unique_ptr<Ex
         [](const Value& a, const Value& b) { return BoolVal(Greater(a, b)); });
 }
 
+namespace {
+
+class AndOp : public Expression {
+public:
+    AndOp(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r)
+        : l_(std::move(l)), r_(std::move(r)) {
+    }
+
+    Value Evaluate(const Block& block, size_t row_idx) const override {
+        if (IsZero(l_->Evaluate(block, row_idx))) {
+            return int64_t{0};
+        }
+        return BoolVal(!IsZero(r_->Evaluate(block, row_idx)));
+    }
+
+private:
+    std::unique_ptr<Expression> l_, r_;
+};
+
+class OrOp : public Expression {
+public:
+    OrOp(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r)
+        : l_(std::move(l)), r_(std::move(r)) {
+    }
+
+    Value Evaluate(const Block& block, size_t row_idx) const override {
+        if (!IsZero(l_->Evaluate(block, row_idx))) {
+            return int64_t{1};
+        }
+        return BoolVal(!IsZero(r_->Evaluate(block, row_idx)));
+    }
+
+private:
+    std::unique_ptr<Expression> l_, r_;
+};
+
+}
+
 std::unique_ptr<Expression> And(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) {
-    return std::make_unique<BinaryOp>(
-        std::move(l), std::move(r),
-        [](const Value& a, const Value& b) { return BoolVal(!IsZero(a) && !IsZero(b)); });
+    return std::make_unique<AndOp>(std::move(l), std::move(r));
 }
 
 // работает только для "%text%"
@@ -129,9 +165,7 @@ std::unique_ptr<Expression> Ge(std::unique_ptr<Expression> l, std::unique_ptr<Ex
 }
 
 std::unique_ptr<Expression> Or(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) {
-    return std::make_unique<BinaryOp>(
-        std::move(l), std::move(r),
-        [](const Value& a, const Value& b) { return BoolVal(!IsZero(a) || !IsZero(b)); });
+    return std::make_unique<OrOp>(std::move(l), std::move(r));
 }
 
 std::unique_ptr<Expression> Plus(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) {

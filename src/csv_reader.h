@@ -13,7 +13,7 @@ public:
 
 private:
     struct CsvRowState;
-    bool UpdateState(CsvRowState& state, int c);
+    bool UpdateState(CsvRowState& state, std::streambuf* sb, int c);
 
     std::ifstream input_;
     CsvConfig config_{};

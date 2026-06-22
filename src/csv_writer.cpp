@@ -5,6 +5,7 @@ CsvWriter::CsvWriter(const std::string& filename, CsvConfig config)
 }
 
 void CsvWriter::WriteRow(const std::vector<std::string>& row) {
+    buf_.clear();
     size_t n = row.size();
     for (size_t i = 0; i < n; ++i) {
         bool need_quotes = false;
@@ -16,25 +17,23 @@ void CsvWriter::WriteRow(const std::vector<std::string>& row) {
         }
 
         if (need_quotes) {
-            output_ << config_.quote;
-        }
-
-        for (char c : row[i]) {
-            if (c == config_.quote) {
-                output_ << config_.quote << config_.quote;
-            } else {
-                output_ << c;
+            buf_ += config_.quote;
+            for (char c : row[i]) {
+                if (c == config_.quote) {
+                    buf_ += config_.quote;
+                }
+                buf_ += c;
             }
-        }
-
-        if (need_quotes) {
-            output_ << config_.quote;
+            buf_ += config_.quote;
+        } else {
+            buf_ += row[i];
         }
 
         if (i == n - 1) {
-            output_ << '\n';
+            buf_ += '\n';
         } else {
-            output_ << config_.delimiter;
+            buf_ += config_.delimiter;
         }
     }
+    output_.write(buf_.data(), static_cast<std::streamsize>(buf_.size()));
 }

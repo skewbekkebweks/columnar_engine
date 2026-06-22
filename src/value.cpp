@@ -37,6 +37,18 @@ Value Add(const Value& a, const Value& b) {
         a, b);
 }
 
+__int128 ToInt128(const Value& v) {
+    return std::visit(
+        [](auto&& x) -> __int128 {
+            using X = std::decay_t<decltype(x)>;
+            if constexpr (kIsNumeric<X>) {
+                return static_cast<__int128>(x);
+            }
+            THROW_NOT_IMPLEMENTED;
+        },
+        v);
+}
+
 Type TypeOf(const Value& v) {
     if (std::holds_alternative<int64_t>(v)) {
         return Type::Int64;
