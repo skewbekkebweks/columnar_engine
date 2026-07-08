@@ -75,7 +75,8 @@ TEST(Expressions, Or) {
 TEST(Expressions, Plus) {
     auto b = OneRow({{"a", 3}, {"b", 7}});
     EXPECT_EQ(Plus(MakeRef("a"), MakeRef("b"))->Evaluate(b, 0), Value{__int128{10}});
-    EXPECT_EQ(Plus(MakeRef("a"), MakeConst(Value{int64_t{-3}}))->Evaluate(b, 0), Value{__int128{0}});
+    EXPECT_EQ(Plus(MakeRef("a"), MakeConst(Value{int64_t{-3}}))->Evaluate(b, 0),
+              Value{__int128{0}});
 }
 
 TEST(Expressions, Like) {
@@ -99,24 +100,27 @@ TEST(Expressions, StringLength) {
 }
 
 TEST(Expressions, ExtractMinute) {
-    auto b = OneRow({}, {{"t", "2013-07-15 12:34:00"}});
+    auto b = TimestampBlock("2013-07-15 12:34:00");
     EXPECT_EQ(ExtractMinute(MakeRef("t"))->Evaluate(b, 0), Value{int64_t{34}});
 
-    auto b2 = OneRow({}, {{"t", "2013-07-15 00:07:00"}});
+    auto b2 = TimestampBlock("2013-07-15 00:07:00");
     EXPECT_EQ(ExtractMinute(MakeRef("t"))->Evaluate(b2, 0), Value{int64_t{7}});
 }
 
 TEST(Expressions, CaseWhen) {
     auto b1 = OneRow({{"cond", 1}, {"a", 10}, {"b", 20}});
-    EXPECT_EQ(CaseWhen(MakeRef("cond"), MakeRef("a"), MakeRef("b"))->Evaluate(b1, 0), Value{int64_t{10}});
+    EXPECT_EQ(CaseWhen(MakeRef("cond"), MakeRef("a"), MakeRef("b"))->Evaluate(b1, 0),
+              Value{int64_t{10}});
 
     auto b2 = OneRow({{"cond", 0}, {"a", 10}, {"b", 20}});
-    EXPECT_EQ(CaseWhen(MakeRef("cond"), MakeRef("a"), MakeRef("b"))->Evaluate(b2, 0), Value{int64_t{20}});
+    EXPECT_EQ(CaseWhen(MakeRef("cond"), MakeRef("a"), MakeRef("b"))->Evaluate(b2, 0),
+              Value{int64_t{20}});
 }
 
 TEST(Expressions, DateTruncMinute) {
-    auto b = OneRow({}, {{"t", "2013-07-15 12:34:56"}});
-    EXPECT_EQ(DateTruncMinute(MakeRef("t"))->Evaluate(b, 0), Value{std::string{"2013-07-15 12:34:00"}});
+    auto b = TimestampBlock("2013-07-15 12:34:56");
+    auto v = DateTruncMinute(MakeRef("t"))->Evaluate(b, 0);
+    EXPECT_EQ(FormatTimestamp(std::get<int64_t>(v)), "2013-07-15 12:34:00");
 }
 
 TEST(Expressions, ExtractDomain) {

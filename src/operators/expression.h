@@ -11,14 +11,22 @@ class Expression {
 public:
     virtual ~Expression() = default;
     virtual Value Evaluate(const Block& block, size_t row_idx) const = 0;
+    virtual Type ResultType(const Block& block) const = 0;
+    virtual const std::string* AsColumnName() const {
+        return nullptr;
+    }
 };
 
 class ColumnRef : public Expression {
 public:
     explicit ColumnRef(std::string name);
     Value Evaluate(const Block& block, size_t row_idx) const override;
+    Type ResultType(const Block& block) const override;
+    const std::string* AsColumnName() const override;
 
 private:
+    size_t ResolveIndex(const Block& block) const;
+
     std::string name_;
     mutable std::optional<size_t> cached_idx_;
 };
@@ -27,6 +35,7 @@ class Constant : public Expression {
 public:
     explicit Constant(Value value);
     Value Evaluate(const Block& block, size_t row_idx) const override;
+    Type ResultType(const Block& block) const override;
 
 private:
     Value value_;
@@ -38,23 +47,28 @@ using TernaryFn = std::function<Value(const Value&, const Value&, const Value&)>
 
 class UnaryOp : public Expression {
 public:
-    UnaryOp(std::unique_ptr<Expression> arg, UnaryFn fn);
+    UnaryOp(std::unique_ptr<Expression> arg, UnaryFn fn, Type result_type);
     Value Evaluate(const Block& block, size_t row_idx) const override;
+    Type ResultType(const Block& block) const override;
 
 private:
     std::unique_ptr<Expression> arg_;
     UnaryFn fn_;
+    Type result_type_;
 };
 
 class BinaryOp : public Expression {
 public:
-    BinaryOp(std::unique_ptr<Expression> left, std::unique_ptr<Expression> right, BinaryFn fn);
+    BinaryOp(std::unique_ptr<Expression> left, std::unique_ptr<Expression> right, BinaryFn fn,
+             Type result_type);
     Value Evaluate(const Block& block, size_t row_idx) const override;
+    Type ResultType(const Block& block) const override;
 
 private:
     std::unique_ptr<Expression> left_;
     std::unique_ptr<Expression> right_;
     BinaryFn fn_;
+    Type result_type_;
 };
 
 class TernaryOp : public Expression {
@@ -62,6 +76,7 @@ public:
     TernaryOp(std::unique_ptr<Expression> a, std::unique_ptr<Expression> b,
               std::unique_ptr<Expression> c, TernaryFn fn);
     Value Evaluate(const Block& block, size_t row_idx) const override;
+    Type ResultType(const Block& block) const override;
 
 private:
     std::unique_ptr<Expression> a_, b_, c_;

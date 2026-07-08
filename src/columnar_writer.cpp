@@ -19,6 +19,8 @@ void ColumnarWriter::AddRowGroup(const std::vector<std::unique_ptr<Column>>& col
 
     std::vector<size_t> col_offsets;
     col_offsets.reserve(columns.size());
+    std::vector<ColumnStat> col_stats;
+    col_stats.reserve(columns.size());
 
     for (size_t i = 0; i < columns.size(); ++i) {
         spdlog::debug("ColumnarWriter::AddRowGroup: {}", i);
@@ -28,9 +30,13 @@ void ColumnarWriter::AddRowGroup(const std::vector<std::unique_ptr<Column>>& col
         }
         col_offsets.push_back(output_.tellp());
         columns[i]->Write(output_);
+
+        ColumnStat stat;
+        stat.valid = columns[i]->TryGetMinMax(stat.min, stat.max);
+        col_stats.push_back(stat);
     }
 
-    metadata_.AddRowGroup(rg_offset, expected_size, std::move(col_offsets));
+    metadata_.AddRowGroup(rg_offset, expected_size, std::move(col_offsets), std::move(col_stats));
 }
 
 void ColumnarWriter::Finalize() && {
@@ -38,15 +44,21 @@ void ColumnarWriter::Finalize() && {
     const auto& offsets = metadata_.GetOffsets();
     const auto& row_counts = metadata_.GetRowCounts();
     const auto& col_offsets = metadata_.GetColOffsets();
+    const auto& col_stats = metadata_.GetColStats();
 
-    spdlog::debug("ColumnarWriter::Finalize " + std::to_string(output_.tellp()) + " " +
-                  std::to_string(offsets.size()));
+    spdlog::debug("ColumnarWriter::Finalize {} {}", static_cast<size_t>(output_.tellp()),
+                  offsets.size());
 
     for (size_t i = 0; i < offsets.size(); ++i) {
         Write(output_, offsets[i]);
         Write(output_, row_counts[i]);
         for (size_t col_offset : col_offsets[i]) {
             Write(output_, col_offset);
+        }
+        for (const ColumnStat& stat : col_stats[i]) {
+            Write(output_, stat.min);
+            Write(output_, stat.max);
+            Write(output_, static_cast<size_t>(stat.valid ? 1 : 0));
         }
     }
 

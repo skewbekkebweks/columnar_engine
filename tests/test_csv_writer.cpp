@@ -4,7 +4,7 @@
 
 TEST(CsvWriter, BasicTest) {
     std::vector<std::string> content = {"abc", "def", "ghi"};
-    
+
     std::string path = "/tmp/a.txt";
 
     {
@@ -20,7 +20,7 @@ TEST(CsvWriter, BasicTest) {
 
 TEST(CsvWriter, ChangeDelimeter) {
     std::vector<std::string> content = {"abc", "def", "ghi"};
-    
+
     std::string path = "/tmp/a.txt";
 
     {
@@ -37,7 +37,7 @@ TEST(CsvWriter, ChangeDelimeter) {
 
 TEST(CsvWriter, ChangeQuoteSymbol) {
     std::vector<std::string> content = {"abc", "d,ef", "ghi"};
-    
+
     std::string path = "/tmp/a.txt";
 
     {
@@ -54,7 +54,7 @@ TEST(CsvWriter, ChangeQuoteSymbol) {
 
 TEST(CsvWriter, LinebreakInside) {
     std::vector<std::string> content = {"abc", "d\nef", "ghi"};
-    
+
     std::string path = "/tmp/a.txt";
 
     {
@@ -73,7 +73,7 @@ TEST(CsvWriter, LinebreakInside) {
 
 TEST(CsvWriter, QuoteInside) {
     std::vector<std::string> content = {"abc", "d\"ef", "ghi"};
-    
+
     std::string path = "/tmp/a.txt";
 
     {

@@ -1,5 +1,7 @@
 #include "operators/aggregate.h"
 
+#include <utility>
+
 #include "column.h"
 
 Aggregate::Aggregate(std::unique_ptr<Operator> child, std::vector<std::string> names,
@@ -13,21 +15,20 @@ std::optional<Block> Aggregate::Next() {
     }
     done_ = true;
 
+    for (auto& agg : aggs_) {
+        agg->EnsureGroups(1);
+    }
+
     while (auto chunk = child_->Next()) {
-        for (size_t row = 0; row < chunk->row_count; ++row) {
-            for (auto& agg : aggs_) {
-                agg->Accumulate(*chunk, row);
-            }
+        for (auto& agg : aggs_) {
+            agg->AccumulateAll(*chunk);
         }
     }
 
     Block result;
     result.row_count = 1;
     for (size_t i = 0; i < aggs_.size(); ++i) {
-        Value val = aggs_[i]->Result();
-        auto col = MakeColumn(TypeOf(val));
-        col->PushBack(val);
-        result.AddColumn(names_[i], std::move(col));
+        result.AddColumn(names_[i], std::move(*aggs_[i]).Finalize());
     }
     return result;
 }

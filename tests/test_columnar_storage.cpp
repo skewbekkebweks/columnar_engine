@@ -9,12 +9,8 @@
 #include "utility.h"
 
 TEST(Storage, RoundtripAllTypes) {
-    Schema schema({
-        {"i", Type::Int64},
-        {"s", Type::String},
-        {"ts", Type::Timestamp},
-        {"d", Type::Date}
-    });
+    Schema schema(
+        {{"i", Type::Int64}, {"s", Type::String}, {"ts", Type::Timestamp}, {"d", Type::Date}});
     {
         ColumnarWriter writer("/tmp/test_rt_all.skewdb", schema);
         auto cols = MakeCols(schema, {{"100", "hello", "2026-05-28 12:00:00", "2026-05-28"}});
@@ -37,8 +33,8 @@ TEST(Storage, RoundtripAllTypes) {
     ASSERT_EQ(rg->size(), 4);
     EXPECT_EQ((*rg)[0]->Get(0), Value{int64_t{100}});
     EXPECT_EQ((*rg)[1]->Get(0), Value{std::string{"hello"}});
-    EXPECT_EQ((*rg)[2]->Get(0), Value{std::string{"2026-05-28 12:00:00"}});
-    EXPECT_EQ((*rg)[3]->Get(0), Value{std::string{"2026-05-28"}});
+    EXPECT_EQ((*rg)[2]->operator[](0), "2026-05-28 12:00:00");
+    EXPECT_EQ((*rg)[3]->operator[](0), "2026-05-28");
 }
 
 TEST(Storage, MultipleRowGroups) {

@@ -17,11 +17,12 @@
 
 TEST(Operators, Q0) {
     Schema schema({{"UserID", Type::Int64}, {"Name", Type::String}});
-    auto path = MakeTempDb("test_q1.skewdb", schema, {
-        {"1", "a"},
-        {"2", "b"},
-        {"3", "c"},
-    });
+    auto path = MakeTempDb("test_q1.skewdb", schema,
+                           {
+                               {"1", "a"},
+                               {"2", "b"},
+                               {"3", "c"},
+                           });
 
     Count count(std::make_unique<Scan>(path, Schema()));
     auto result = count.Next();
@@ -35,10 +36,11 @@ TEST(Operators, Q0) {
 
 TEST(Operators, ScanProjection) {
     Schema schema({{"UserID", Type::Int64}, {"Name", Type::String}});
-    auto path = MakeTempDb("test_scan_proj.skewdb", schema, {
-        {"1", "a"},
-        {"2", "b"},
-    });
+    auto path = MakeTempDb("test_scan_proj.skewdb", schema,
+                           {
+                               {"1", "a"},
+                               {"2", "b"},
+                           });
 
     Scan scan(path, Schema({{"UserID", Type::Int64}}));
     auto block = scan.Next();
@@ -53,14 +55,9 @@ TEST(Operators, ScanProjection) {
 
 TEST(Operators, Filter) {
     Schema schema({{"id", Type::Int64}, {"val", Type::Int64}});
-    auto path = MakeTempDb("test_filter.skewdb", schema, {
-        {"1", "10"}, {"2", "20"}, {"3", "30"}
-    });
+    auto path = MakeTempDb("test_filter.skewdb", schema, {{"1", "10"}, {"2", "20"}, {"3", "30"}});
 
-    Filter f(
-        std::make_unique<Scan>(path),
-        Ge(MakeRef("val"), MakeConst(Value{int64_t{20}}))
-    );
+    Filter f(std::make_unique<Scan>(path), Ge(MakeRef("val"), MakeConst(Value{int64_t{20}})));
 
     auto block = f.Next();
     ASSERT_TRUE(block.has_value());
@@ -74,19 +71,14 @@ TEST(Operators, FilterNonePass) {
     Schema schema({{"val", Type::Int64}});
     auto path = MakeTempDb("test_filter_none.skewdb", schema, {{"1"}, {"2"}});
 
-    Filter f(
-        std::make_unique<Scan>(path),
-        Gt(MakeRef("val"), MakeConst(Value{int64_t{100}}))
-    );
+    Filter f(std::make_unique<Scan>(path), Gt(MakeRef("val"), MakeConst(Value{int64_t{100}})));
 
     EXPECT_FALSE(f.Next().has_value());
 }
 
 TEST(Operators, Limit) {
     Schema schema({{"val", Type::Int64}});
-    auto path = MakeTempDb("test_limit.skewdb", schema, {
-        {"10"}, {"20"}, {"30"}, {"40"}, {"50"}
-    });
+    auto path = MakeTempDb("test_limit.skewdb", schema, {{"10"}, {"20"}, {"30"}, {"40"}, {"50"}});
 
     Limit lim(std::make_unique<Scan>(path), 3);
     auto block = lim.Next();
@@ -111,9 +103,8 @@ TEST(Operators, LimitExceedsRows) {
 
 TEST(Operators, LimitWithOffset) {
     Schema schema({{"val", Type::Int64}});
-    auto path = MakeTempDb("test_limit_offset.skewdb", schema, {
-        {"10"}, {"20"}, {"30"}, {"40"}, {"50"}
-    });
+    auto path =
+        MakeTempDb("test_limit_offset.skewdb", schema, {{"10"}, {"20"}, {"30"}, {"40"}, {"50"}});
 
     Limit lim(std::make_unique<Scan>(path), 2, 2);
     auto block = lim.Next();
@@ -141,9 +132,7 @@ TEST(Operators, Project) {
 
 TEST(Operators, OrderByAsc) {
     Schema schema({{"val", Type::Int64}});
-    auto path = MakeTempDb("test_orderby_asc.skewdb", schema, {
-        {"30"}, {"10"}, {"20"}
-    });
+    auto path = MakeTempDb("test_orderby_asc.skewdb", schema, {{"30"}, {"10"}, {"20"}});
 
     OrderBy ob(std::make_unique<Scan>(path), {{"val", false}});
     auto block = ob.Next();
@@ -157,9 +146,7 @@ TEST(Operators, OrderByAsc) {
 
 TEST(Operators, OrderByDesc) {
     Schema schema({{"val", Type::Int64}});
-    auto path = MakeTempDb("test_orderby_desc.skewdb", schema, {
-        {"30"}, {"10"}, {"20"}
-    });
+    auto path = MakeTempDb("test_orderby_desc.skewdb", schema, {{"30"}, {"10"}, {"20"}});
 
     OrderBy ob(std::make_unique<Scan>(path), {{"val", true}});
     auto block = ob.Next();
@@ -173,9 +160,8 @@ TEST(Operators, OrderByDesc) {
 
 TEST(Operators, OrderByWithLimit) {
     Schema schema({{"val", Type::Int64}});
-    auto path = MakeTempDb("test_orderby_limit.skewdb", schema, {
-        {"30"}, {"10"}, {"20"}, {"40"}, {"50"}
-    });
+    auto path =
+        MakeTempDb("test_orderby_limit.skewdb", schema, {{"30"}, {"10"}, {"20"}, {"40"}, {"50"}});
 
     OrderBy ob(std::make_unique<Scan>(path), {{"val", false}}, 3);
     auto block = ob.Next();
@@ -189,9 +175,8 @@ TEST(Operators, OrderByWithLimit) {
 
 TEST(Operators, OrderByWithOffset) {
     Schema schema({{"val", Type::Int64}});
-    auto path = MakeTempDb("test_orderby_offset.skewdb", schema, {
-        {"30"}, {"10"}, {"20"}, {"40"}, {"50"}
-    });
+    auto path =
+        MakeTempDb("test_orderby_offset.skewdb", schema, {{"30"}, {"10"}, {"20"}, {"40"}, {"50"}});
 
     OrderBy ob(std::make_unique<Scan>(path), {{"val", false}}, 3, 1);
     auto block = ob.Next();
@@ -205,9 +190,7 @@ TEST(Operators, OrderByWithOffset) {
 
 TEST(Operators, AggregateSumMinMax) {
     Schema schema({{"val", Type::Int64}});
-    auto path = MakeTempDb("test_agg_smm.skewdb", schema, {
-        {"10"}, {"20"}, {"30"}
-    });
+    auto path = MakeTempDb("test_agg_smm.skewdb", schema, {{"10"}, {"20"}, {"30"}});
 
     std::vector<std::unique_ptr<Aggregator>> aggs;
     aggs.push_back(MakeSumAgg(MakeRef("val")));
@@ -227,9 +210,7 @@ TEST(Operators, AggregateSumMinMax) {
 
 TEST(Operators, AggregateCountDistinct) {
     Schema schema({{"val", Type::Int64}});
-    auto path = MakeTempDb("test_agg_distinct.skewdb", schema, {
-        {"1"}, {"2"}, {"1"}, {"3"}, {"2"}
-    });
+    auto path = MakeTempDb("test_agg_distinct.skewdb", schema, {{"1"}, {"2"}, {"1"}, {"3"}, {"2"}});
 
     std::vector<std::unique_ptr<Aggregator>> aggs;
     aggs.push_back(MakeCountDistinctAgg(MakeRef("val")));
@@ -243,17 +224,13 @@ TEST(Operators, AggregateCountDistinct) {
 
 TEST(Operators, GroupByCount) {
     Schema schema({{"grp", Type::Int64}, {"val", Type::Int64}});
-    auto path = MakeTempDb("test_groupby_count.skewdb", schema, {
-        {"1", "10"}, {"2", "20"}, {"1", "30"}, {"2", "40"}
-    });
+    auto path = MakeTempDb("test_groupby_count.skewdb", schema,
+                           {{"1", "10"}, {"2", "20"}, {"1", "30"}, {"2", "40"}});
 
     std::vector<std::unique_ptr<Expression>> keys;
     keys.push_back(MakeRef("grp"));
-    GroupBy gb(
-        std::make_unique<Scan>(path),
-        std::move(keys), {"grp"}, {"cnt"},
-        {[]() { return MakeCountAgg(); }}
-    );
+    GroupBy gb(std::make_unique<Scan>(path), std::move(keys), {"grp"}, {"cnt"},
+               {[]() { return MakeCountAgg(); }});
 
     auto block = gb.Next();
     ASSERT_TRUE(block.has_value());
@@ -270,17 +247,13 @@ TEST(Operators, GroupByCount) {
 
 TEST(Operators, GroupBySum) {
     Schema schema({{"grp", Type::Int64}, {"val", Type::Int64}});
-    auto path = MakeTempDb("test_groupby_sum.skewdb", schema, {
-        {"1", "10"}, {"2", "20"}, {"1", "30"}
-    });
+    auto path =
+        MakeTempDb("test_groupby_sum.skewdb", schema, {{"1", "10"}, {"2", "20"}, {"1", "30"}});
 
     std::vector<std::unique_ptr<Expression>> keys;
     keys.push_back(MakeRef("grp"));
-    GroupBy gb(
-        std::make_unique<Scan>(path),
-        std::move(keys), {"grp"}, {"sum"},
-        {[]() { return MakeSumAgg(MakeRef("val")); }}
-    );
+    GroupBy gb(std::make_unique<Scan>(path), std::move(keys), {"grp"}, {"sum"},
+               {[]() { return MakeSumAgg(MakeRef("val")); }});
 
     auto block = gb.Next();
     ASSERT_TRUE(block.has_value());
@@ -300,11 +273,8 @@ TEST(Operators, GroupByEmpty) {
 
     std::vector<std::unique_ptr<Expression>> keys;
     keys.push_back(MakeRef("grp"));
-    GroupBy gb(
-        std::make_unique<Scan>(path),
-        std::move(keys), {"grp"}, {"cnt"},
-        {[]() { return MakeCountAgg(); }}
-    );
+    GroupBy gb(std::make_unique<Scan>(path), std::move(keys), {"grp"}, {"cnt"},
+               {[]() { return MakeCountAgg(); }});
 
     EXPECT_FALSE(gb.Next().has_value());
 }

@@ -50,19 +50,14 @@ std::optional<std::vector<std::unique_ptr<Column>>> ColumnarReader::ReadRowGroup
     std::vector<std::unique_ptr<Column>> result;
     result.reserve(col_indices->size());
 
-    auto read_column_raw = [&]() -> std::vector<char> {
+    for (size_t idx : *col_indices) {
+        input_.seekg(col_offsets[idx]);
         size_t uncompressed_size = Read<size_t>(input_);
         size_t compressed_size = Read<size_t>(input_);
         compressed_buf_.resize(compressed_size);
-        input_.read(compressed_buf_.data(), static_cast<std::streamsize>(compressed_size));
-        return DecompressLz4(compressed_buf_.data(), compressed_size, uncompressed_size);
-    };
-
-    for (size_t idx : *col_indices) {
-        input_.seekg(static_cast<std::streamoff>(col_offsets[idx]));
-        auto raw = read_column_raw();
+        input_.read(compressed_buf_.data(), compressed_size);
         auto col = MakeColumn(columns[idx].type);
-        col->LoadRaw(raw.data(), raw.size(), row_count);
+        col->LoadCompressed(compressed_buf_.data(), compressed_size, uncompressed_size, row_count);
         result.push_back(std::move(col));
     }
 
@@ -72,6 +67,10 @@ std::optional<std::vector<std::unique_ptr<Column>>> ColumnarReader::ReadRowGroup
 
 const Schema& ColumnarReader::GetSchema() const {
     return metadata_.GetSchema();
+}
+
+const std::vector<ColumnStat>& ColumnarReader::CurrentColStats() const {
+    return metadata_.GetColStats()[cur_row_group_idx];
 }
 
 size_t ColumnarReader::GetTotalRowCount() const {
@@ -86,12 +85,12 @@ void ColumnarReader::ScanMetadata() {
     input_.seekg(-sizeof(size_t), std::ios::end);
     size_t row_groups_count = Read<size_t>(input_);
 
-    spdlog::debug("Row groups count is " + std::to_string(row_groups_count));
+    spdlog::debug("Row groups count is {}", row_groups_count);
 
     input_.seekg(-2 * sizeof(size_t), std::ios::end);
     size_t columns_count = Read<size_t>(input_);
 
-    spdlog::debug("Columns count is " + std::to_string(columns_count));
+    spdlog::debug("Columns count is {}", columns_count);
 
     input_.seekg(-3 * sizeof(size_t), std::ios::end);
     size_t schema_offset = Read<size_t>(input_);
@@ -102,7 +101,7 @@ void ColumnarReader::ScanMetadata() {
     metadata_.SetSchema(schema);
 
     size_t metadata_offset =
-        schema_offset - (2 + columns_count) * sizeof(size_t) * row_groups_count;
+        schema_offset - (2 + columns_count * 4) * sizeof(size_t) * row_groups_count;
     input_.seekg(metadata_offset, std::ios::beg);
 
     for (size_t i = 0; i < row_groups_count; ++i) {
@@ -113,7 +112,13 @@ void ColumnarReader::ScanMetadata() {
         for (size_t j = 0; j < columns_count; ++j) {
             col_offsets[j] = Read<size_t>(input_);
         }
-        metadata_.AddRowGroup(offset, row_count, std::move(col_offsets));
+        std::vector<ColumnStat> col_stats(columns_count);
+        for (size_t j = 0; j < columns_count; ++j) {
+            col_stats[j].min = Read<int64_t>(input_);
+            col_stats[j].max = Read<int64_t>(input_);
+            col_stats[j].valid = Read<size_t>(input_) != 0;
+        }
+        metadata_.AddRowGroup(offset, row_count, std::move(col_offsets), std::move(col_stats));
     }
 
     input_.seekg(0, std::ios::beg);
@@ -126,8 +131,7 @@ Schema ColumnarReader::ReadSchema(size_t columns_count) {
         std::string name = Read<std::string>(input_);
         Type type = static_cast<Type>(Read<size_t>(input_));
 
-        spdlog::debug("ReadSchema: column " + name + " " +
-                      std::to_string(static_cast<size_t>(type)));
+        spdlog::debug("ReadSchema: column {} {}", name, static_cast<size_t>(type));
 
         schema.AddColumn(Schema::ColumnInfo{name, type});
     }

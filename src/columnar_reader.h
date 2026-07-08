@@ -20,6 +20,8 @@ public:
     const Schema& GetSchema() const;
     size_t GetTotalRowCount() const;
 
+    const std::vector<ColumnStat>& CurrentColStats() const;
+
 private:
     void ScanMetadata();
     Schema ReadSchema(size_t columns_count);

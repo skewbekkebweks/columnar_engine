@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -22,8 +23,19 @@ public:
     virtual Value Get(size_t idx) const = 0;
 
     virtual void Write(std::ofstream& output) const = 0;
-    virtual void LoadRaw(const char* data, size_t size, size_t row_count) = 0;
+    virtual void LoadCompressed(const char* compressed, size_t compressed_size,
+                                size_t uncompressed_size, size_t row_count) = 0;
     virtual void AppendSelected(const Column& src, const std::vector<size_t>& rows) = 0;
+
+    virtual const int64_t* AsInt64Data() const {
+        return nullptr;
+    }
+
+    virtual bool TryGetMinMax(int64_t& min, int64_t& max) const {
+        (void)min;
+        (void)max;
+        return false;
+    }
 };
 
 std::unique_ptr<Column> MakeColumn(Type type);
@@ -41,8 +53,11 @@ public:
     Value Get(size_t idx) const override;
 
     void Write(std::ofstream& output) const override;
-    void LoadRaw(const char* data, size_t size, size_t row_count) override;
+    void LoadCompressed(const char* compressed, size_t compressed_size, size_t uncompressed_size,
+                        size_t row_count) override;
     void AppendSelected(const Column& src, const std::vector<size_t>& rows) override;
+    const int64_t* AsInt64Data() const override;
+    bool TryGetMinMax(int64_t& min, int64_t& max) const override;
 
 private:
     std::vector<int64_t> data_;
@@ -61,7 +76,8 @@ public:
     Value Get(size_t idx) const override;
 
     void Write(std::ofstream& output) const override;
-    void LoadRaw(const char* data, size_t size, size_t row_count) override;
+    void LoadCompressed(const char* compressed, size_t compressed_size, size_t uncompressed_size,
+                        size_t row_count) override;
     void AppendSelected(const Column& src, const std::vector<size_t>& rows) override;
 
 private:
@@ -81,7 +97,8 @@ public:
     Value Get(size_t idx) const override;
 
     void Write(std::ofstream& output) const override;
-    void LoadRaw(const char* data, size_t size, size_t row_count) override;
+    void LoadCompressed(const char* compressed, size_t compressed_size, size_t uncompressed_size,
+                        size_t row_count) override;
     void AppendSelected(const Column& src, const std::vector<size_t>& rows) override;
 
 private:
@@ -101,11 +118,13 @@ public:
     Value Get(size_t idx) const override;
 
     void Write(std::ofstream& output) const override;
-    void LoadRaw(const char* data, size_t size, size_t row_count) override;
+    void LoadCompressed(const char* compressed, size_t compressed_size, size_t uncompressed_size,
+                        size_t row_count) override;
     void AppendSelected(const Column& src, const std::vector<size_t>& rows) override;
+    bool TryGetMinMax(int64_t& min, int64_t& max) const override;
 
 private:
-    std::vector<std::string> data_;
+    std::vector<int64_t> data_;
 };
 
 class ColumnDate : public Column {
@@ -121,9 +140,11 @@ public:
     Value Get(size_t idx) const override;
 
     void Write(std::ofstream& output) const override;
-    void LoadRaw(const char* data, size_t size, size_t row_count) override;
+    void LoadCompressed(const char* compressed, size_t compressed_size, size_t uncompressed_size,
+                        size_t row_count) override;
     void AppendSelected(const Column& src, const std::vector<size_t>& rows) override;
+    bool TryGetMinMax(int64_t& min, int64_t& max) const override;
 
 private:
-    std::vector<std::string> data_;
+    std::vector<int32_t> data_;
 };

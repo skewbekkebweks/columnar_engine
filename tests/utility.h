@@ -6,8 +6,10 @@
 #include "column.h"
 #include "schema.h"
 #include "columnar_writer.h"
+#include "date_util.h"
 
-inline std::string CreateTempFile(const std::string& content, const std::string& filename = "a.txt") {
+inline std::string CreateTempFile(const std::string& content,
+                                  const std::string& filename = "a.txt") {
     std::string path = "/tmp/" + filename;
     std::ofstream out(path);
     out << content;
@@ -16,7 +18,7 @@ inline std::string CreateTempFile(const std::string& content, const std::string&
 }
 
 inline std::string MakeTempDb(const std::string& filename, const Schema& schema,
-                               const std::vector<std::vector<std::string>>& rows) {
+                              const std::vector<std::vector<std::string>>& rows) {
     std::string path = "/tmp/" + filename;
     ColumnarWriter writer(path, schema);
 
@@ -36,7 +38,7 @@ inline std::string MakeTempDb(const std::string& filename, const Schema& schema,
 }
 
 inline std::vector<std::unique_ptr<Column>> MakeCols(Schema& schema,
-                                                      std::vector<std::vector<std::string>> data) {
+                                                     std::vector<std::vector<std::string>> data) {
     std::vector<std::unique_ptr<Column>> cols;
     for (size_t c = 0; c < schema.GetColumns().size(); ++c) {
         auto col = MakeColumn(schema.GetColumns()[c].type);
@@ -61,15 +63,12 @@ inline std::vector<std::vector<Value>> Rows(const Block& b) {
 }
 
 inline void SortRows(std::vector<std::vector<Value>>& rows) {
-    std::sort(rows.begin(), rows.end(), [](const auto& a, const auto& b) {
-        return Less(a[0], b[0]);
-    });
+    std::sort(rows.begin(), rows.end(),
+              [](const auto& a, const auto& b) { return Less(a[0], b[0]); });
 }
 
-inline Block OneRow(
-    std::vector<std::pair<std::string, int64_t>> ints = {},
-    std::vector<std::pair<std::string, std::string>> strs = {})
-{
+inline Block OneRow(std::vector<std::pair<std::string, int64_t>> ints = {},
+                    std::vector<std::pair<std::string, std::string>> strs = {}) {
     Block b;
     b.row_count = 1;
     for (auto& [name, val] : ints) {
@@ -82,5 +81,14 @@ inline Block OneRow(
         col->PushBack(Value{val});
         b.AddColumn(name, std::move(col));
     }
+    return b;
+}
+
+static Block TimestampBlock(const std::string& s) {
+    Block b;
+    b.row_count = 1;
+    auto col = std::make_unique<ColumnTimestamp>();
+    col->PushBack(s);
+    b.AddColumn("t", std::move(col));
     return b;
 }

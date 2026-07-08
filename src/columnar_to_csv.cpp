@@ -36,7 +36,6 @@ int main(int argc, char** argv) {
         size_t columns_count = row_group.size();
         size_t row_count = row_group[0]->Size();
         for (size_t i = 0; i < row_count; ++i) {
-            spdlog::debug("row number {}", i);
             std::vector<std::string> row;
             row.reserve(columns_count);
 

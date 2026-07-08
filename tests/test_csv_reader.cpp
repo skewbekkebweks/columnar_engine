@@ -3,13 +3,11 @@
 #include "csv_reader.h"
 #include "../tests/utility.h"
 
-
 TEST(CsvReader, BasicTest) {
     std::string content =
         "a,b,c,d\n"
         "1,2,3,4\n"
-        "а,б,в,г\n"
-        ;
+        "а,б,в,г\n";
     std::string path = CreateTempFile(content);
     CsvReader reader{path};
 
@@ -24,9 +22,7 @@ TEST(CsvReader, BasicTest) {
 }
 
 TEST(CsvReader, WrappedByQuotes) {
-    std::string content =
-        "\"a\",b,\"c\",d\n"
-        ;
+    std::string content = "\"a\",b,\"c\",d\n";
     std::string path = CreateTempFile(content);
     CsvReader reader{path};
 
@@ -39,9 +35,7 @@ TEST(CsvReader, WrappedByQuotes) {
 }
 
 TEST(CsvReader, LinebreakInside) {
-    std::string content =
-        "\"a\nbc\",def\n"
-        ;
+    std::string content = "\"a\nbc\",def\n";
     std::string path = CreateTempFile(content);
     CsvReader reader{path};
 
@@ -52,9 +46,7 @@ TEST(CsvReader, LinebreakInside) {
 }
 
 TEST(CsvReader, QuotesInside) {
-    std::string content =
-        "\"\"\"abc\"\"\",\"def\",ghi"
-        ;
+    std::string content = "\"\"\"abc\"\"\",\"def\",ghi";
     std::string path = CreateTempFile(content);
     CsvReader reader{path};
 
@@ -70,8 +62,7 @@ TEST(CsvReader, DifferentRowSize) {
         "a,b,c,d\n"
         "a,b,c\n"
         "a,b\n"
-        "a"
-        ;
+        "a";
     std::string path = CreateTempFile(content);
     CsvReader reader{path};
 
@@ -87,8 +78,7 @@ TEST(CsvReader, DifferentRowSize) {
 TEST(CsvReader, ChangeDelimiter) {
     std::string content =
         "a;b;c;d\n"
-        "a,b;c,d"
-        ;
+        "a,b;c,d";
     std::string path = CreateTempFile(content);
     CsvConfig config{';', '"'};
     CsvReader reader{path, config};
@@ -102,8 +92,7 @@ TEST(CsvReader, ChangeDelimiter) {
 TEST(CsvReader, ChangeQuoteSymbol) {
     std::string content =
         "\"a,b\",c,d\n"
-        "'a,b',c,d"
-        ;
+        "'a,b',c,d";
     std::string path = CreateTempFile(content);
     CsvConfig config{',', '\''};
     CsvReader reader{path, config};

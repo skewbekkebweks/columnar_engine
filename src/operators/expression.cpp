@@ -3,7 +3,7 @@
 ColumnRef::ColumnRef(std::string name) : name_(std::move(name)) {
 }
 
-Value ColumnRef::Evaluate(const Block& block, size_t row_idx) const {
+size_t ColumnRef::ResolveIndex(const Block& block) const {
     if (!cached_idx_) {
         for (size_t i = 0; i < block.names.size(); ++i) {
             if (block.names[i] == name_) {
@@ -12,7 +12,19 @@ Value ColumnRef::Evaluate(const Block& block, size_t row_idx) const {
             }
         }
     }
-    return block.columns[*cached_idx_]->Get(row_idx);
+    return *cached_idx_;
+}
+
+Value ColumnRef::Evaluate(const Block& block, size_t row_idx) const {
+    return block.columns[ResolveIndex(block)]->Get(row_idx);
+}
+
+Type ColumnRef::ResultType(const Block& block) const {
+    return block.columns[ResolveIndex(block)]->GetType();
+}
+
+const std::string* ColumnRef::AsColumnName() const {
+    return &name_;
 }
 
 Constant::Constant(Value value) : value_(std::move(value)) {
@@ -22,12 +34,24 @@ Value Constant::Evaluate(const Block&, size_t) const {
     return value_;
 }
 
-BinaryOp::BinaryOp(std::unique_ptr<Expression> left, std::unique_ptr<Expression> right, BinaryFn fn)
-    : left_(std::move(left)), right_(std::move(right)), fn_(std::move(fn)) {
+Type Constant::ResultType(const Block&) const {
+    return TypeOf(value_);
+}
+
+BinaryOp::BinaryOp(std::unique_ptr<Expression> left, std::unique_ptr<Expression> right, BinaryFn fn,
+                   Type result_type)
+    : left_(std::move(left)),
+      right_(std::move(right)),
+      fn_(std::move(fn)),
+      result_type_(result_type) {
 }
 
 Value BinaryOp::Evaluate(const Block& block, size_t row_idx) const {
     return fn_(left_->Evaluate(block, row_idx), right_->Evaluate(block, row_idx));
+}
+
+Type BinaryOp::ResultType(const Block&) const {
+    return result_type_;
 }
 
 std::unique_ptr<Expression> MakeRef(std::string name) {
@@ -42,30 +66,34 @@ static Value BoolVal(bool b) {
     return Value{int64_t{b ? 1 : 0}};
 }
 
-UnaryOp::UnaryOp(std::unique_ptr<Expression> arg, UnaryFn fn)
-    : arg_(std::move(arg)), fn_(std::move(fn)) {
+UnaryOp::UnaryOp(std::unique_ptr<Expression> arg, UnaryFn fn, Type result_type)
+    : arg_(std::move(arg)), fn_(std::move(fn)), result_type_(result_type) {
 }
 
 Value UnaryOp::Evaluate(const Block& block, size_t row_idx) const {
     return fn_(arg_->Evaluate(block, row_idx));
 }
 
+Type UnaryOp::ResultType(const Block&) const {
+    return result_type_;
+}
+
 std::unique_ptr<Expression> Eq(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) {
     return std::make_unique<BinaryOp>(
         std::move(l), std::move(r),
-        [](const Value& a, const Value& b) { return BoolVal(Equal(a, b)); });
+        [](const Value& a, const Value& b) { return BoolVal(Equal(a, b)); }, Type::Int64);
 }
 
 std::unique_ptr<Expression> Ne(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) {
     return std::make_unique<BinaryOp>(
         std::move(l), std::move(r),
-        [](const Value& a, const Value& b) { return BoolVal(NotEqual(a, b)); });
+        [](const Value& a, const Value& b) { return BoolVal(NotEqual(a, b)); }, Type::Int64);
 }
 
 std::unique_ptr<Expression> Gt(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) {
     return std::make_unique<BinaryOp>(
         std::move(l), std::move(r),
-        [](const Value& a, const Value& b) { return BoolVal(Greater(a, b)); });
+        [](const Value& a, const Value& b) { return BoolVal(Greater(a, b)); }, Type::Int64);
 }
 
 namespace {
@@ -81,6 +109,10 @@ public:
             return int64_t{0};
         }
         return BoolVal(!IsZero(r_->Evaluate(block, row_idx)));
+    }
+
+    Type ResultType(const Block&) const override {
+        return Type::Int64;
     }
 
 private:
@@ -100,11 +132,15 @@ public:
         return BoolVal(!IsZero(r_->Evaluate(block, row_idx)));
     }
 
+    Type ResultType(const Block&) const override {
+        return Type::Int64;
+    }
+
 private:
     std::unique_ptr<Expression> l_, r_;
 };
 
-}
+}  // namespace
 
 std::unique_ptr<Expression> And(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) {
     return std::make_unique<AndOp>(std::move(l), std::move(r));
@@ -116,30 +152,40 @@ static bool LikeMatch(const std::string& text, const std::string& pattern) {
 }
 
 std::unique_ptr<Expression> Like(std::unique_ptr<Expression> arg, std::string pattern) {
-    return std::make_unique<UnaryOp>(std::move(arg),
-                                     [pat = std::move(pattern)](const Value& v) -> Value {
-                                         return BoolVal(LikeMatch(std::get<std::string>(v), pat));
-                                     });
+    return std::make_unique<UnaryOp>(
+        std::move(arg),
+        [pat = std::move(pattern)](const Value& v) -> Value {
+            return BoolVal(LikeMatch(std::get<std::string>(v), pat));
+        },
+        Type::Int64);
 }
 
 std::unique_ptr<Expression> NotLike(std::unique_ptr<Expression> arg, std::string pattern) {
-    return std::make_unique<UnaryOp>(std::move(arg),
-                                     [pat = std::move(pattern)](const Value& v) -> Value {
-                                         return BoolVal(!LikeMatch(std::get<std::string>(v), pat));
-                                     });
+    return std::make_unique<UnaryOp>(
+        std::move(arg),
+        [pat = std::move(pattern)](const Value& v) -> Value {
+            return BoolVal(!LikeMatch(std::get<std::string>(v), pat));
+        },
+        Type::Int64);
 }
 
 std::unique_ptr<Expression> StringLength(std::unique_ptr<Expression> arg) {
-    return std::make_unique<UnaryOp>(std::move(arg), [](const Value& v) -> Value {
-        return int64_t{static_cast<int64_t>(std::get<std::string>(v).size())};
-    });
+    return std::make_unique<UnaryOp>(
+        std::move(arg),
+        [](const Value& v) -> Value {
+            return int64_t{static_cast<int64_t>(std::get<std::string>(v).size())};
+        },
+        Type::Int64);
 }
 
 std::unique_ptr<Expression> ExtractMinute(std::unique_ptr<Expression> arg) {
-    return std::make_unique<UnaryOp>(std::move(arg), [](const Value& v) -> Value {
-        const std::string& s = std::get<std::string>(v);
-        return int64_t{std::stoll(s.substr(14, 2))};
-    });
+    return std::make_unique<UnaryOp>(
+        std::move(arg),
+        [](const Value& v) -> Value {
+            int64_t ts = std::get<int64_t>(v);
+            return int64_t{(ts / 60) % 60};
+        },
+        Type::Int64);
 }
 
 TernaryOp::TernaryOp(std::unique_ptr<Expression> a, std::unique_ptr<Expression> b,
@@ -152,16 +198,20 @@ Value TernaryOp::Evaluate(const Block& block, size_t row_idx) const {
                c_->Evaluate(block, row_idx));
 }
 
+Type TernaryOp::ResultType(const Block& block) const {
+    return b_->ResultType(block);
+}
+
 std::unique_ptr<Expression> Le(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) {
     return std::make_unique<BinaryOp>(
         std::move(l), std::move(r),
-        [](const Value& a, const Value& b) { return BoolVal(LessOrEqual(a, b)); });
+        [](const Value& a, const Value& b) { return BoolVal(LessOrEqual(a, b)); }, Type::Int64);
 }
 
 std::unique_ptr<Expression> Ge(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) {
     return std::make_unique<BinaryOp>(
         std::move(l), std::move(r),
-        [](const Value& a, const Value& b) { return BoolVal(GreaterOrEqual(a, b)); });
+        [](const Value& a, const Value& b) { return BoolVal(GreaterOrEqual(a, b)); }, Type::Int64);
 }
 
 std::unique_ptr<Expression> Or(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) {
@@ -169,8 +219,9 @@ std::unique_ptr<Expression> Or(std::unique_ptr<Expression> l, std::unique_ptr<Ex
 }
 
 std::unique_ptr<Expression> Plus(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) {
-    return std::make_unique<BinaryOp>(std::move(l), std::move(r),
-                                      [](const Value& a, const Value& b) { return Add(a, b); });
+    return std::make_unique<BinaryOp>(
+        std::move(l), std::move(r), [](const Value& a, const Value& b) { return Add(a, b); },
+        Type::Int128);
 }
 
 std::unique_ptr<Expression> CaseWhen(std::unique_ptr<Expression> cond,
@@ -182,31 +233,37 @@ std::unique_ptr<Expression> CaseWhen(std::unique_ptr<Expression> cond,
 }
 
 std::unique_ptr<Expression> DateTruncMinute(std::unique_ptr<Expression> arg) {
-    return std::make_unique<UnaryOp>(std::move(arg), [](const Value& v) -> Value {
-        const std::string& s = std::get<std::string>(v);
-        return s.substr(0, 16) + ":00";
-    });
+    return std::make_unique<UnaryOp>(
+        std::move(arg),
+        [](const Value& v) -> Value {
+            int64_t ts = std::get<int64_t>(v);
+            return int64_t{ts - ts % 60};
+        },
+        Type::Timestamp);
 }
 
 std::unique_ptr<Expression> ExtractDomain(std::unique_ptr<Expression> arg) {
-    return std::make_unique<UnaryOp>(std::move(arg), [](const Value& v) -> Value {
-        const std::string& url = std::get<std::string>(v);
-        size_t nl = url.find('\n');
-        if (nl != std::string::npos && nl != url.size() - 1) {
-            return url;
-        }
-        size_t start = url.find("://");
-        if (start == std::string::npos) {
-            return url;
-        }
-        start += 3;
-        if (url.compare(start, 4, "www.") == 0) {
-            start += 4;
-        }
-        size_t end = url.find('/', start);
-        if (end == std::string::npos) {
-            return url;
-        }
-        return url.substr(start, end - start);
-    });
+    return std::make_unique<UnaryOp>(
+        std::move(arg),
+        [](const Value& v) -> Value {
+            const std::string& url = std::get<std::string>(v);
+            size_t nl = url.find('\n');
+            if (nl != std::string::npos && nl != url.size() - 1) {
+                return url;
+            }
+            size_t start = url.find("://");
+            if (start == std::string::npos) {
+                return url;
+            }
+            start += 3;
+            if (url.compare(start, 4, "www.") == 0) {
+                start += 4;
+            }
+            size_t end = url.find('/', start);
+            if (end == std::string::npos) {
+                return url;
+            }
+            return url.substr(start, end - start);
+        },
+        Type::String);
 }

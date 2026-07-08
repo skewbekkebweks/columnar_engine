@@ -4,6 +4,7 @@
 #include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
 
+#include "date_util.h"
 #include "operators/aggregate.h"
 #include "operators/aggregator.h"
 #include "operators/count.h"
@@ -17,6 +18,13 @@
 #include "operators/scan.h"
 #include "schema.h"
 #include "value.h"
+
+static std::unique_ptr<Scan> MakeDateRangeScan(const std::string& db, Schema schema,
+                                               const std::string& begin, const std::string& end) {
+    auto scan = std::make_unique<Scan>(db, std::move(schema));
+    scan->AddRangeHint("EventDate", ParseDate(begin), ParseDate(end));
+    return scan;
+}
 
 using QueryGenerator = std::function<std::unique_ptr<Operator>(const std::string&)>;
 
@@ -523,86 +531,93 @@ static const std::vector<QueryGenerator> kQueries = {
     },
     // Q36
     [](const std::string& db) {
-        auto filter = And(Eq(MakeRef("CounterID"), MakeConst(int64_t{62})),
-                          And(Ge(MakeRef("EventDate"), MakeConst(std::string("2013-07-01"))),
-                              And(Le(MakeRef("EventDate"), MakeConst(std::string("2013-07-31"))),
-                                  And(Eq(MakeRef("DontCountHits"), MakeConst(int64_t{0})),
-                                      And(Eq(MakeRef("IsRefresh"), MakeConst(int64_t{0})),
-                                          Ne(MakeRef("URL"), MakeConst(std::string(""))))))));
+        auto filter =
+            And(Eq(MakeRef("CounterID"), MakeConst(int64_t{62})),
+                And(Ge(MakeRef("EventDate"), MakeConst(int64_t{ParseDate("2013-07-01")})),
+                    And(Le(MakeRef("EventDate"), MakeConst(int64_t{ParseDate("2013-07-31")})),
+                        And(Eq(MakeRef("DontCountHits"), MakeConst(int64_t{0})),
+                            And(Eq(MakeRef("IsRefresh"), MakeConst(int64_t{0})),
+                                Ne(MakeRef("URL"), MakeConst(std::string(""))))))));
         std::vector<std::unique_ptr<Expression>> key_exprs;
         key_exprs.push_back(MakeRef("URL"));
         std::vector<AggFactory> agg_factories;
         agg_factories.push_back([]() { return MakeCountAgg(); });
         return std::make_unique<OrderBy>(
             std::make_unique<GroupBy>(
-                std::make_unique<Filter>(
-                    std::make_unique<Scan>(db, Schema({{"CounterID", Type::Int64},
-                                                       {"EventDate", Type::Date},
-                                                       {"DontCountHits", Type::Int64},
-                                                       {"IsRefresh", Type::Int64},
-                                                       {"URL", Type::String}})),
-                    std::move(filter)),
+                std::make_unique<Filter>(MakeDateRangeScan(db,
+                                                           Schema({{"CounterID", Type::Int64},
+                                                                   {"EventDate", Type::Date},
+                                                                   {"DontCountHits", Type::Int64},
+                                                                   {"IsRefresh", Type::Int64},
+                                                                   {"URL", Type::String}}),
+                                                           "2013-07-01", "2013-07-31"),
+                                         std::move(filter)),
                 std::move(key_exprs), std::vector<std::string>{"URL"},
                 std::vector<std::string>{"PageViews"}, std::move(agg_factories)),
             std::vector<SortKey>{{"PageViews", true}}, 10);
     },
     // Q37
     [](const std::string& db) {
-        auto filter = And(Eq(MakeRef("CounterID"), MakeConst(int64_t{62})),
-                          And(Ge(MakeRef("EventDate"), MakeConst(std::string("2013-07-01"))),
-                              And(Le(MakeRef("EventDate"), MakeConst(std::string("2013-07-31"))),
-                                  And(Eq(MakeRef("DontCountHits"), MakeConst(int64_t{0})),
-                                      And(Eq(MakeRef("IsRefresh"), MakeConst(int64_t{0})),
-                                          Ne(MakeRef("Title"), MakeConst(std::string(""))))))));
+        auto filter =
+            And(Eq(MakeRef("CounterID"), MakeConst(int64_t{62})),
+                And(Ge(MakeRef("EventDate"), MakeConst(int64_t{ParseDate("2013-07-01")})),
+                    And(Le(MakeRef("EventDate"), MakeConst(int64_t{ParseDate("2013-07-31")})),
+                        And(Eq(MakeRef("DontCountHits"), MakeConst(int64_t{0})),
+                            And(Eq(MakeRef("IsRefresh"), MakeConst(int64_t{0})),
+                                Ne(MakeRef("Title"), MakeConst(std::string(""))))))));
         std::vector<std::unique_ptr<Expression>> key_exprs;
         key_exprs.push_back(MakeRef("Title"));
         std::vector<AggFactory> agg_factories;
         agg_factories.push_back([]() { return MakeCountAgg(); });
         return std::make_unique<OrderBy>(
             std::make_unique<GroupBy>(
-                std::make_unique<Filter>(
-                    std::make_unique<Scan>(db, Schema({{"CounterID", Type::Int64},
-                                                       {"Title", Type::String},
-                                                       {"EventDate", Type::Date},
-                                                       {"DontCountHits", Type::Int64},
-                                                       {"IsRefresh", Type::Int64}})),
-                    std::move(filter)),
+                std::make_unique<Filter>(MakeDateRangeScan(db,
+                                                           Schema({{"CounterID", Type::Int64},
+                                                                   {"Title", Type::String},
+                                                                   {"EventDate", Type::Date},
+                                                                   {"DontCountHits", Type::Int64},
+                                                                   {"IsRefresh", Type::Int64}}),
+                                                           "2013-07-01", "2013-07-31"),
+                                         std::move(filter)),
                 std::move(key_exprs), std::vector<std::string>{"Title"},
                 std::vector<std::string>{"PageViews"}, std::move(agg_factories)),
             std::vector<SortKey>{{"PageViews", true}}, 10);
     },
     // Q38
     [](const std::string& db) {
-        auto filter = And(Eq(MakeRef("CounterID"), MakeConst(int64_t{62})),
-                          And(Ge(MakeRef("EventDate"), MakeConst(std::string("2013-07-01"))),
-                              And(Le(MakeRef("EventDate"), MakeConst(std::string("2013-07-31"))),
-                                  And(Eq(MakeRef("IsRefresh"), MakeConst(int64_t{0})),
-                                      And(Ne(MakeRef("IsLink"), MakeConst(int64_t{0})),
-                                          Eq(MakeRef("IsDownload"), MakeConst(int64_t{0})))))));
+        auto filter =
+            And(Eq(MakeRef("CounterID"), MakeConst(int64_t{62})),
+                And(Ge(MakeRef("EventDate"), MakeConst(int64_t{ParseDate("2013-07-01")})),
+                    And(Le(MakeRef("EventDate"), MakeConst(int64_t{ParseDate("2013-07-31")})),
+                        And(Eq(MakeRef("IsRefresh"), MakeConst(int64_t{0})),
+                            And(Ne(MakeRef("IsLink"), MakeConst(int64_t{0})),
+                                Eq(MakeRef("IsDownload"), MakeConst(int64_t{0})))))));
         std::vector<std::unique_ptr<Expression>> key_exprs;
         key_exprs.push_back(MakeRef("URL"));
         std::vector<AggFactory> agg_factories;
         agg_factories.push_back([]() { return MakeCountAgg(); });
         return std::make_unique<OrderBy>(
             std::make_unique<GroupBy>(
-                std::make_unique<Filter>(
-                    std::make_unique<Scan>(db, Schema({{"CounterID", Type::Int64},
-                                                       {"EventDate", Type::Date},
-                                                       {"IsRefresh", Type::Int64},
-                                                       {"IsLink", Type::Int64},
-                                                       {"IsDownload", Type::Int64},
-                                                       {"URL", Type::String}})),
-                    std::move(filter)),
+                std::make_unique<Filter>(MakeDateRangeScan(db,
+                                                           Schema({{"CounterID", Type::Int64},
+                                                                   {"EventDate", Type::Date},
+                                                                   {"IsRefresh", Type::Int64},
+                                                                   {"IsLink", Type::Int64},
+                                                                   {"IsDownload", Type::Int64},
+                                                                   {"URL", Type::String}}),
+                                                           "2013-07-01", "2013-07-31"),
+                                         std::move(filter)),
                 std::move(key_exprs), std::vector<std::string>{"URL"},
                 std::vector<std::string>{"PageViews"}, std::move(agg_factories)),
             std::vector<SortKey>{{"PageViews", true}}, 10, 1000);
     },
     // Q39
     [](const std::string& db) {
-        auto filter = And(Eq(MakeRef("CounterID"), MakeConst(int64_t{62})),
-                          And(Ge(MakeRef("EventDate"), MakeConst(std::string("2013-07-01"))),
-                              And(Le(MakeRef("EventDate"), MakeConst(std::string("2013-07-31"))),
-                                  Eq(MakeRef("IsRefresh"), MakeConst(int64_t{0})))));
+        auto filter =
+            And(Eq(MakeRef("CounterID"), MakeConst(int64_t{62})),
+                And(Ge(MakeRef("EventDate"), MakeConst(int64_t{ParseDate("2013-07-01")})),
+                    And(Le(MakeRef("EventDate"), MakeConst(int64_t{ParseDate("2013-07-31")})),
+                        Eq(MakeRef("IsRefresh"), MakeConst(int64_t{0})))));
         std::vector<std::unique_ptr<Expression>> key_exprs;
         key_exprs.push_back(MakeRef("TraficSourceID"));
         key_exprs.push_back(MakeRef("SearchEngineID"));
@@ -615,16 +630,17 @@ static const std::vector<QueryGenerator> kQueries = {
         agg_factories.push_back([]() { return MakeCountAgg(); });
         return std::make_unique<OrderBy>(
             std::make_unique<GroupBy>(
-                std::make_unique<Filter>(
-                    std::make_unique<Scan>(db, Schema({{"CounterID", Type::Int64},
-                                                       {"EventDate", Type::Date},
-                                                       {"IsRefresh", Type::Int64},
-                                                       {"TraficSourceID", Type::Int64},
-                                                       {"SearchEngineID", Type::Int64},
-                                                       {"AdvEngineID", Type::Int64},
-                                                       {"Referer", Type::String},
-                                                       {"URL", Type::String}})),
-                    std::move(filter)),
+                std::make_unique<Filter>(MakeDateRangeScan(db,
+                                                           Schema({{"CounterID", Type::Int64},
+                                                                   {"EventDate", Type::Date},
+                                                                   {"IsRefresh", Type::Int64},
+                                                                   {"TraficSourceID", Type::Int64},
+                                                                   {"SearchEngineID", Type::Int64},
+                                                                   {"AdvEngineID", Type::Int64},
+                                                                   {"Referer", Type::String},
+                                                                   {"URL", Type::String}}),
+                                                           "2013-07-01", "2013-07-31"),
+                                         std::move(filter)),
                 std::move(key_exprs),
                 std::vector<std::string>{"TraficSourceID", "SearchEngineID", "AdvEngineID", "Src",
                                          "Dst"},
@@ -633,14 +649,15 @@ static const std::vector<QueryGenerator> kQueries = {
     },
     // Q40
     [](const std::string& db) {
-        auto filter = And(Eq(MakeRef("CounterID"), MakeConst(int64_t{62})),
-                          And(Ge(MakeRef("EventDate"), MakeConst(std::string("2013-07-01"))),
-                              And(Le(MakeRef("EventDate"), MakeConst(std::string("2013-07-31"))),
-                                  And(Eq(MakeRef("IsRefresh"), MakeConst(int64_t{0})),
-                                      And(Or(Eq(MakeRef("TraficSourceID"), MakeConst(int64_t{-1})),
-                                             Eq(MakeRef("TraficSourceID"), MakeConst(int64_t{6}))),
-                                          Eq(MakeRef("RefererHash"),
-                                             MakeConst(int64_t{3594120000172545465LL})))))));
+        auto filter =
+            And(Eq(MakeRef("CounterID"), MakeConst(int64_t{62})),
+                And(Ge(MakeRef("EventDate"), MakeConst(int64_t{ParseDate("2013-07-01")})),
+                    And(Le(MakeRef("EventDate"), MakeConst(int64_t{ParseDate("2013-07-31")})),
+                        And(Eq(MakeRef("IsRefresh"), MakeConst(int64_t{0})),
+                            And(Or(Eq(MakeRef("TraficSourceID"), MakeConst(int64_t{-1})),
+                                   Eq(MakeRef("TraficSourceID"), MakeConst(int64_t{6}))),
+                                Eq(MakeRef("RefererHash"),
+                                   MakeConst(int64_t{3594120000172545465LL})))))));
         std::vector<std::unique_ptr<Expression>> key_exprs;
         key_exprs.push_back(MakeRef("URLHash"));
         key_exprs.push_back(MakeRef("EventDate"));
@@ -648,14 +665,15 @@ static const std::vector<QueryGenerator> kQueries = {
         agg_factories.push_back([]() { return MakeCountAgg(); });
         return std::make_unique<OrderBy>(
             std::make_unique<GroupBy>(
-                std::make_unique<Filter>(
-                    std::make_unique<Scan>(db, Schema({{"CounterID", Type::Int64},
-                                                       {"EventDate", Type::Date},
-                                                       {"IsRefresh", Type::Int64},
-                                                       {"TraficSourceID", Type::Int64},
-                                                       {"RefererHash", Type::Int64},
-                                                       {"URLHash", Type::Int64}})),
-                    std::move(filter)),
+                std::make_unique<Filter>(MakeDateRangeScan(db,
+                                                           Schema({{"CounterID", Type::Int64},
+                                                                   {"EventDate", Type::Date},
+                                                                   {"IsRefresh", Type::Int64},
+                                                                   {"TraficSourceID", Type::Int64},
+                                                                   {"RefererHash", Type::Int64},
+                                                                   {"URLHash", Type::Int64}}),
+                                                           "2013-07-01", "2013-07-31"),
+                                         std::move(filter)),
                 std::move(key_exprs), std::vector<std::string>{"URLHash", "EventDate"},
                 std::vector<std::string>{"PageViews"}, std::move(agg_factories)),
             std::vector<SortKey>{{"PageViews", true}}, 10, 100);
@@ -664,8 +682,8 @@ static const std::vector<QueryGenerator> kQueries = {
     [](const std::string& db) {
         auto filter = And(
             Eq(MakeRef("CounterID"), MakeConst(int64_t{62})),
-            And(Ge(MakeRef("EventDate"), MakeConst(std::string("2013-07-01"))),
-                And(Le(MakeRef("EventDate"), MakeConst(std::string("2013-07-31"))),
+            And(Ge(MakeRef("EventDate"), MakeConst(int64_t{ParseDate("2013-07-01")})),
+                And(Le(MakeRef("EventDate"), MakeConst(int64_t{ParseDate("2013-07-31")})),
                     And(Eq(MakeRef("IsRefresh"), MakeConst(int64_t{0})),
                         And(Eq(MakeRef("DontCountHits"), MakeConst(int64_t{0})),
                             Eq(MakeRef("URLHash"), MakeConst(int64_t{2868770270353813622LL})))))));
@@ -677,13 +695,15 @@ static const std::vector<QueryGenerator> kQueries = {
         return std::make_unique<OrderBy>(
             std::make_unique<GroupBy>(
                 std::make_unique<Filter>(
-                    std::make_unique<Scan>(db, Schema({{"CounterID", Type::Int64},
-                                                       {"EventDate", Type::Date},
-                                                       {"IsRefresh", Type::Int64},
-                                                       {"DontCountHits", Type::Int64},
-                                                       {"URLHash", Type::Int64},
-                                                       {"WindowClientWidth", Type::Int64},
-                                                       {"WindowClientHeight", Type::Int64}})),
+                    MakeDateRangeScan(db,
+                                      Schema({{"CounterID", Type::Int64},
+                                              {"EventDate", Type::Date},
+                                              {"IsRefresh", Type::Int64},
+                                              {"DontCountHits", Type::Int64},
+                                              {"URLHash", Type::Int64},
+                                              {"WindowClientWidth", Type::Int64},
+                                              {"WindowClientHeight", Type::Int64}}),
+                                      "2013-07-01", "2013-07-31"),
                     std::move(filter)),
                 std::move(key_exprs),
                 std::vector<std::string>{"WindowClientWidth", "WindowClientHeight"},
@@ -692,24 +712,26 @@ static const std::vector<QueryGenerator> kQueries = {
     },
     // Q42
     [](const std::string& db) {
-        auto filter = And(Eq(MakeRef("CounterID"), MakeConst(int64_t{62})),
-                          And(Ge(MakeRef("EventDate"), MakeConst(std::string("2013-07-14"))),
-                              And(Le(MakeRef("EventDate"), MakeConst(std::string("2013-07-15"))),
-                                  And(Eq(MakeRef("IsRefresh"), MakeConst(int64_t{0})),
-                                      Eq(MakeRef("DontCountHits"), MakeConst(int64_t{0}))))));
+        auto filter =
+            And(Eq(MakeRef("CounterID"), MakeConst(int64_t{62})),
+                And(Ge(MakeRef("EventDate"), MakeConst(int64_t{ParseDate("2013-07-14")})),
+                    And(Le(MakeRef("EventDate"), MakeConst(int64_t{ParseDate("2013-07-15")})),
+                        And(Eq(MakeRef("IsRefresh"), MakeConst(int64_t{0})),
+                            Eq(MakeRef("DontCountHits"), MakeConst(int64_t{0}))))));
         std::vector<std::unique_ptr<Expression>> key_exprs;
         key_exprs.push_back(DateTruncMinute(MakeRef("EventTime")));
         std::vector<AggFactory> agg_factories;
         agg_factories.push_back([]() { return MakeCountAgg(); });
         return std::make_unique<OrderBy>(
             std::make_unique<GroupBy>(
-                std::make_unique<Filter>(
-                    std::make_unique<Scan>(db, Schema({{"CounterID", Type::Int64},
-                                                       {"EventDate", Type::Date},
-                                                       {"EventTime", Type::Timestamp},
-                                                       {"IsRefresh", Type::Int64},
-                                                       {"DontCountHits", Type::Int64}})),
-                    std::move(filter)),
+                std::make_unique<Filter>(MakeDateRangeScan(db,
+                                                           Schema({{"CounterID", Type::Int64},
+                                                                   {"EventDate", Type::Date},
+                                                                   {"EventTime", Type::Timestamp},
+                                                                   {"IsRefresh", Type::Int64},
+                                                                   {"DontCountHits", Type::Int64}}),
+                                                           "2013-07-14", "2013-07-15"),
+                                         std::move(filter)),
                 std::move(key_exprs), std::vector<std::string>{"M"},
                 std::vector<std::string>{"PageViews"}, std::move(agg_factories)),
             std::vector<SortKey>{{"M", false}}, 10, 1000);
@@ -737,47 +759,65 @@ static void PrintBlock(const Block& block) {
             if (col != 0) {
                 std::cout << ',';
             }
-            PrintCsvField(ToString(block.columns[col]->Get(row)));
+            PrintCsvField(block.columns[col]->operator[](row));
         }
         std::cout << '\n';
     }
 }
 
-static void RunQuery(size_t idx, const std::string& db) {
-    auto op = kQueries[idx](db);
-
-    auto start_time = std::chrono::steady_clock::now();
-    while (auto block = op->Next()) {
-        PrintBlock(*block);
+static int64_t RunQuery(size_t idx, const std::string& db, int total_runs) {
+    int64_t duration = 0;
+    for (int run = 0; run < total_runs; ++run) {
+        bool measured = run == total_runs - 1;
+        auto op = kQueries[idx](db);
+        auto start_time = std::chrono::steady_clock::now();
+        while (auto block = op->Next()) {
+            if (measured) {
+                PrintBlock(*block);
+            }
+        }
+        auto end_time = std::chrono::steady_clock::now();
+        if (measured) {
+            duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time)
+                           .count();
+        }
     }
-    auto end_time = std::chrono::steady_clock::now();
-    auto duration =
-        std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
 
     std::cerr << "Q" << std::setfill('0') << std::setw(2) << idx << ": "
               << static_cast<double>(duration) / 1000 << "s\n";
+    return duration;
 }
 
 int main(int argc, char** argv) {
     spdlog::cfg::load_env_levels();
 
-    if (argc != 3) {
-        std::cerr << "usage: " << argv[0] << " <db_file> <query_number|all>\n";
+    if (argc != 3 && argc != 4) {
+        std::cerr << "usage: " << argv[0] << " <db_file> <query_number|all> [cold|hot1|hot2]\n";
         return 1;
     }
 
     std::string db = argv[1];
     std::string query_arg = argv[2];
+    std::string mode = argc == 4 ? argv[3] : "cold";
+
+    int total_runs;
+    if (mode == "cold") {
+        total_runs = 1;
+    } else if (mode == "hot1") {
+        total_runs = 2;
+    } else if (mode == "hot2") {
+        total_runs = 3;
+    } else {
+        std::cerr << "unknown mode: " << mode << " (expected cold, hot1 or hot2)\n";
+        return 1;
+    }
 
     if (query_arg == "all") {
-        auto start_time = std::chrono::steady_clock::now();
+        int64_t total = 0;
         for (size_t i = 0; i < kQueries.size(); ++i) {
-            RunQuery(i, db);
+            total += RunQuery(i, db, total_runs);
         }
-        auto end_time = std::chrono::steady_clock::now();
-        auto duration =
-            std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-        std::cerr << "total: " << static_cast<double>(duration) / 1000 << "s\n";
+        std::cerr << "total: " << static_cast<double>(total) / 1000 << "s\n";
     } else {
         size_t idx = std::stoi(query_arg);
         if (idx >= kQueries.size()) {
@@ -785,7 +825,7 @@ int main(int argc, char** argv) {
                       << " not implemented yet\n";
             return 1;
         }
-        RunQuery(idx, db);
+        RunQuery(idx, db, total_runs);
     }
 
     return 0;

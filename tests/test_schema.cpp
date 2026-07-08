@@ -6,10 +6,9 @@
 TEST(Schema, BasicFromCsv) {
     std::string content =
         "a,int64\n"
-        "b,string\n"
-        ;
+        "b,string\n";
     std::string path = CreateTempFile(content);
-    
+
     Schema schema = Schema::FromCsv(path);
 
     EXPECT_EQ(schema.Size(), 2);
@@ -22,28 +21,25 @@ TEST(Schema, BasicFromCsv) {
 }
 
 TEST(Schema, FromCsvInvalidCsv) {
-    std::string content =
-        "a,int64,int32\n"
-        ;
+    std::string content = "a,int64,int32\n";
     std::string path = CreateTempFile(content);
-    
+
     EXPECT_ANY_THROW(Schema::FromCsv(path));
 }
 
 TEST(Schema, FromCsvTwoEqualColumns) {
     std::string content =
         "a,int64\n"
-        "a,string\n"
-        ;
+        "a,string\n";
     std::string path = CreateTempFile(content);
-    
+
     EXPECT_ANY_THROW(Schema::FromCsv(path));
 }
 
 TEST(Schema, AddColumnBasic) {
     std::string content = "";
     std::string path = CreateTempFile(content);
-    
+
     Schema schema = Schema::FromCsv(path);
 
     EXPECT_NO_THROW(schema.AddColumn(Schema::ColumnInfo{"a", Type::Int64}));
@@ -59,7 +55,7 @@ TEST(Schema, AddColumnBasic) {
 TEST(Schema, AddColumnTwoEqualColumns) {
     std::string content = "";
     std::string path = CreateTempFile(content);
-    
+
     Schema schema = Schema::FromCsv(path);
 
     EXPECT_NO_THROW(schema.AddColumn(Schema::ColumnInfo{"a", Type::Int64}));

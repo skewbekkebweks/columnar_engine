@@ -1,10 +1,7 @@
 #include "column.h"
 
-#include <cstring>
-
-#include <spdlog/spdlog.h>
-
 #include "compress.h"
+#include "date_util.h"
 #include "error.h"
 
 namespace {
@@ -17,8 +14,7 @@ void AppendRows(std::vector<T>& dst, const std::vector<T>& src, const std::vecto
     }
 }
 
-template <typename Container>
-void LoadStrings(Container& data, const char* raw, size_t row_count) {
+void LoadStrings(std::vector<std::string>& data, const char* raw, size_t row_count) {
     data.reserve(data.size() + row_count);
     const char* p = raw;
     for (size_t i = 0; i < row_count; ++i) {
@@ -27,7 +23,42 @@ void LoadStrings(Container& data, const char* raw, size_t row_count) {
     }
 }
 
+template <typename T>
+void LoadNumbers(std::vector<T>& data, const char* compressed, size_t compressed_size,
+                 size_t uncompressed_size, size_t row_count) {
+    size_t old_size = data.size();
+    data.resize(old_size + row_count);
+    DecompressLz4(compressed, compressed_size, reinterpret_cast<char*>(data.data() + old_size),
+                  uncompressed_size);
 }
+
+void WriteCompressed(std::ofstream& output, const char* raw, size_t size) {
+    auto compressed = CompressLz4(raw, size);
+    Write(output, size);
+    Write(output, compressed.size());
+    output.write(compressed.data(), compressed.size());
+}
+
+template <typename T>
+void WriteNumbers(std::ofstream& output, const std::vector<T>& data) {
+    WriteCompressed(output, reinterpret_cast<const char*>(data.data()), data.size() * sizeof(T));
+}
+
+template <typename T>
+bool MinMaxOf(const std::vector<T>& data, int64_t& min, int64_t& max) {
+    if (data.empty()) {
+        return false;
+    }
+    min = data[0];
+    max = data[0];
+    for (T v : data) {
+        min = std::min<int64_t>(min, v);
+        max = std::max<int64_t>(max, v);
+    }
+    return true;
+}
+
+}  // namespace
 
 std::unique_ptr<Column> MakeColumn(Type type) {
     switch (type) {
@@ -81,21 +112,20 @@ void ColumnInt64::AppendSelected(const Column& src, const std::vector<size_t>& r
 }
 
 void ColumnInt64::Write(std::ofstream& output) const {
-    size_t uncompressed_size = data_.size() * sizeof(int64_t);
-    const char* raw = reinterpret_cast<const char*>(data_.data());
-    auto compressed = CompressLz4(raw, uncompressed_size);
-    ::Write(output, uncompressed_size);
-    ::Write(output, compressed.size());
-    output.write(compressed.data(), compressed.size());
+    WriteNumbers(output, data_);
 }
 
-void ColumnInt64::LoadRaw(const char* data, size_t size, size_t row_count) {
-    if (size != row_count * sizeof(int64_t)) {
-        THROW_RUNTIME_ERROR("LoadRaw: size mismatch for int64 column");
-    }
-    size_t old_size = data_.size();
-    data_.resize(old_size + row_count);
-    std::memcpy(data_.data() + old_size, data, size);
+void ColumnInt64::LoadCompressed(const char* compressed, size_t compressed_size,
+                                 size_t uncompressed_size, size_t row_count) {
+    LoadNumbers(data_, compressed, compressed_size, uncompressed_size, row_count);
+}
+
+const int64_t* ColumnInt64::AsInt64Data() const {
+    return data_.data();
+}
+
+bool ColumnInt64::TryGetMinMax(int64_t& min, int64_t& max) const {
+    return MinMaxOf(data_, min, max);
 }
 
 // Int128
@@ -132,7 +162,7 @@ void ColumnInt128::Write(std::ofstream&) const {
     THROW_NOT_IMPLEMENTED;
 }
 
-void ColumnInt128::LoadRaw(const char*, size_t, size_t) {
+void ColumnInt128::LoadCompressed(const char*, size_t, size_t, size_t) {
     THROW_NOT_IMPLEMENTED;
 }
 
@@ -166,8 +196,10 @@ void ColumnString::AppendSelected(const Column& src, const std::vector<size_t>& 
     AppendRows(data_, static_cast<const ColumnString&>(src).data_, rows);
 }
 
-void ColumnString::LoadRaw(const char* data, size_t, size_t row_count) {
-    LoadStrings(data_, data, row_count);
+void ColumnString::LoadCompressed(const char* compressed, size_t compressed_size,
+                                  size_t uncompressed_size, size_t row_count) {
+    auto raw = DecompressLz4(compressed, compressed_size, uncompressed_size);
+    LoadStrings(data_, raw.data(), row_count);
 }
 
 void ColumnString::Write(std::ofstream& output) const {
@@ -176,10 +208,7 @@ void ColumnString::Write(std::ofstream& output) const {
         raw.insert(raw.end(), s.begin(), s.end());
         raw.push_back('\0');
     }
-    auto compressed = CompressLz4(raw.data(), raw.size());
-    ::Write(output, raw.size());
-    ::Write(output, compressed.size());
-    output.write(compressed.data(), compressed.size());
+    WriteCompressed(output, raw.data(), raw.size());
 }
 
 // Timestamp
@@ -189,11 +218,11 @@ Type ColumnTimestamp::GetType() const {
 }
 
 void ColumnTimestamp::PushBack(const std::string& value) {
-    data_.push_back(value);
+    data_.push_back(ParseTimestamp(value));
 }
 
 void ColumnTimestamp::PushBack(const Value& value) {
-    data_.push_back(std::get<std::string>(value));
+    data_.push_back(std::get<int64_t>(value));
 }
 
 size_t ColumnTimestamp::Size() const {
@@ -201,7 +230,7 @@ size_t ColumnTimestamp::Size() const {
 }
 
 std::string ColumnTimestamp::operator[](size_t idx) const {
-    return data_[idx];
+    return FormatTimestamp(data_[idx]);
 }
 
 Value ColumnTimestamp::Get(size_t idx) const {
@@ -212,20 +241,17 @@ void ColumnTimestamp::AppendSelected(const Column& src, const std::vector<size_t
     AppendRows(data_, static_cast<const ColumnTimestamp&>(src).data_, rows);
 }
 
-void ColumnTimestamp::LoadRaw(const char* data, size_t, size_t row_count) {
-    LoadStrings(data_, data, row_count);
+void ColumnTimestamp::LoadCompressed(const char* compressed, size_t compressed_size,
+                                     size_t uncompressed_size, size_t row_count) {
+    LoadNumbers(data_, compressed, compressed_size, uncompressed_size, row_count);
+}
+
+bool ColumnTimestamp::TryGetMinMax(int64_t& min, int64_t& max) const {
+    return MinMaxOf(data_, min, max);
 }
 
 void ColumnTimestamp::Write(std::ofstream& output) const {
-    std::vector<char> raw;
-    for (const std::string& s : data_) {
-        raw.insert(raw.end(), s.begin(), s.end());
-        raw.push_back('\0');
-    }
-    auto compressed = CompressLz4(raw.data(), raw.size());
-    ::Write(output, raw.size());
-    ::Write(output, compressed.size());
-    output.write(compressed.data(), compressed.size());
+    WriteNumbers(output, data_);
 }
 
 // Date
@@ -235,11 +261,11 @@ Type ColumnDate::GetType() const {
 }
 
 void ColumnDate::PushBack(const std::string& value) {
-    data_.push_back(value);
+    data_.push_back(static_cast<int32_t>(ParseDate(value)));
 }
 
 void ColumnDate::PushBack(const Value& value) {
-    data_.push_back(std::get<std::string>(value));
+    data_.push_back(static_cast<int32_t>(std::get<int64_t>(value)));
 }
 
 size_t ColumnDate::Size() const {
@@ -247,29 +273,26 @@ size_t ColumnDate::Size() const {
 }
 
 std::string ColumnDate::operator[](size_t idx) const {
-    return data_[idx];
+    return FormatDate(data_[idx]);
 }
 
 Value ColumnDate::Get(size_t idx) const {
-    return data_[idx];
+    return static_cast<int64_t>(data_[idx]);
 }
 
 void ColumnDate::AppendSelected(const Column& src, const std::vector<size_t>& rows) {
     AppendRows(data_, static_cast<const ColumnDate&>(src).data_, rows);
 }
 
-void ColumnDate::LoadRaw(const char* data, size_t, size_t row_count) {
-    LoadStrings(data_, data, row_count);
+void ColumnDate::LoadCompressed(const char* compressed, size_t compressed_size,
+                                size_t uncompressed_size, size_t row_count) {
+    LoadNumbers(data_, compressed, compressed_size, uncompressed_size, row_count);
+}
+
+bool ColumnDate::TryGetMinMax(int64_t& min, int64_t& max) const {
+    return MinMaxOf(data_, min, max);
 }
 
 void ColumnDate::Write(std::ofstream& output) const {
-    std::vector<char> raw;
-    for (const std::string& s : data_) {
-        raw.insert(raw.end(), s.begin(), s.end());
-        raw.push_back('\0');
-    }
-    auto compressed = CompressLz4(raw.data(), raw.size());
-    ::Write(output, raw.size());
-    ::Write(output, compressed.size());
-    output.write(compressed.data(), compressed.size());
+    WriteNumbers(output, data_);
 }
